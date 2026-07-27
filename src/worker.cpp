@@ -22,18 +22,39 @@ namespace {
 
 // Handles exactly one connection, end to end, on its own thread.
 //
-// TODO: receive a message via protocol::ReceiveMessage(client).
-// TODO: check the message type — if it's not kTaskSubmit, decide what to
+// DONE: receive a message via protocol::ReceiveMessage(client).
+// DONE: check the message type — if it's not kTaskSubmit, decide what to
 //       do (log and close? this worker only expects submits for now).
-// TODO: send a TASK_ACK back, using the task_id from the submit.
-// TODO: "execute" the task — a short sleep is fine as a stand-in for now,
+// DONE: send a TASK_ACK back, using the task_id from the submit.
+// DONE: "execute" the task — a short sleep is fine as a stand-in for now,
 //       the point of this step is the connection/threading shape, not
 //       real task execution.
-// TODO: build and send a TASK_RESULT (decide what status/payload to use
+// DONE: build and send a TASK_RESULT (decide what status/payload to use
 //       for this stub — kSucceeded with some placeholder payload is fine).
-// TODO: close the client socket when done (see transport::CloseSocket).
+// DONE: close the client socket when done (see transport::CloseSocket).
     void HandleConnection(socket_t client, std::stop_token stopToken) {
-        // your code here
+        auto dec_mes = protocol::ReceiveMessage(client);
+
+        if (dec_mes->type != protocol::MessageType::kTaskSubmit) {
+            std::cout << "Placeholder for rejecting.\n";
+            // I don't know how to log and close.
+            transport::CloseSocket(client);
+            return;
+        }
+
+        // Process continues here, with type being kTaskSubmit.
+        // protocol::SendTaskAck(client, {"WhatToAckBack?"});
+        protocol::TaskAck ack {dec_mes->submit.taskId};
+        protocol::SendTaskAck(client, ack);
+
+        // How does one execute tasks?
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+        // Sending a taskResult. Should i write to the result?
+        // Is the dec_mes values populated or not? IDK again.
+        protocol::SendTaskResult(client, dec_mes->result);
+
+        transport::CloseSocket(client);
     }
 
 // Sets up the listening socket and runs the accept loop.
