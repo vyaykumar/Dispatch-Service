@@ -16,69 +16,74 @@
 
 using transport::socket_t;
 
+
 namespace {
 
     constexpr uint16_t kPort = 50051;
 
-// Handles exactly one connection, end to end, on its own thread.
-//
-// DONE: receive a message via protocol::ReceiveMessage(client).
-// DONE: check the message type — if it's not kTaskSubmit, decide what to
-//       do (log and close? this worker only expects submits for now).
-// DONE: send a TASK_ACK back, using the task_id from the submit.
-// DONE: "execute" the task — a short sleep is fine as a stand-in for now,
-//       the point of this step is the connection/threading shape, not
-//       real task execution.
-// DONE: build and send a TASK_RESULT (decide what status/payload to use
-//       for this stub — kSucceeded with some placeholder payload is fine).
-// DONE: close the client socket when done (see transport::CloseSocket).
+    // Handles exactly one connection, end to end, on its own thread.
     void HandleConnection(socket_t client, std::stop_token stopToken) {
         auto dec_mes = protocol::ReceiveMessage(client);
 
-        if (dec_mes->type != protocol::MessageType::kTaskSubmit) {
-            std::cout << "Placeholder for rejecting.\n";
-            // I don't know how to log and close.
+        if (dec_mes == std::nullopt) {
+            std::cout << "Whats's received isn't a proper message. Rejected.\n";
             transport::CloseSocket(client);
             return;
         }
 
-        // Process continues here, with type being kTaskSubmit.
-        // protocol::SendTaskAck(client, {"WhatToAckBack?"});
+        if (dec_mes->type != protocol::MessageType::kTaskSubmit) {
+            std::cout << "Message Type isn't submit. Rejected.\n";
+            transport::CloseSocket(client);
+            return;
+        }
+
         protocol::TaskAck ack {dec_mes->submit.taskId};
-        protocol::SendTaskAck(client, ack);
+        bool flag = protocol::SendTaskAck(client, ack);
 
-        // How does one execute tasks?
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        if (flag) {
+            std::cout << "Event Logger: ACK passed.\n";
 
-        // Sending a taskResult. Should i write to the result?
-        // Is the dec_mes values populated or not? IDK again.
-        protocol::SendTaskResult(client, dec_mes->result);
+            // PLACeHOLDER: Work Section.
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+
+            std::string testInput {"done: Hello."};
+            protocol::TaskResult res {  dec_mes->submit.taskId,
+                                        protocol::TaskStatus::kSucceeded,
+                                        std::vector<uint8_t>(testInput.begin(), testInput.end())};
+            flag = protocol::SendTaskResult(client, res);
+            if (flag)
+                std::cout << "Event Logger: Result sending passed. Terminating connection.\n";
+            else
+                std::cout << "Event Logger: Result sending failed. Terminating connection.\n";
+        }
+        else {
+            std::cout << "Event Logger: Ack failed. Skipping Result. Terminating connection.\n";
+        }
 
         transport::CloseSocket(client);
     }
 
-// Sets up the listening socket and runs the accept loop.
-//
-// TODO: create a TCP socket (see main.cc from Step 1's smoke test for the
-//       exact socket()/bind()/listen() calls — same pattern applies here).
-// TODO: loop calling accept(). For each accepted connection, spawn a
-//       std::jthread running HandleConnection with that client socket.
-// TODO: decide where those jthreads are kept. A std::jthread that goes out
-//       of scope immediately will block the accept loop waiting to join it
-//       (that defeats the point of one-thread-per-connection) — you need
-//       somewhere to stash them so the accept loop can keep going.
-//       (Think about what "somewhere" needs to guarantee about lifetime
-//       and thread-safety if the accept loop and a cleanup pass might
-//       touch it at different times — you don't need to solve full
-//       graceful shutdown yet, just don't paint yourself into a corner.)
-// TODO: think about what a clean exit path even looks like here for later
-//       — you don't have to build it now, but note it as you go.
+    // Sets up the listening socket and runs the accept loop.
+    //
+    // TODO: create a TCP socket (see main.c from Step 1's smoke test for the
+    //       exact socket()/bind()/listen() calls — same pattern applies here).
+    // TODO: loop calling accept(). For each accepted connection, spawn a
+    //       std::jthread running HandleConnection with that client socket.
+    // TODO: decide where those jthreads are kept. A std::jthread that goes out
+    //       of scope immediately will block the accept loop waiting to join it
+    //       (that defeats the point of one-thread-per-connection) — you need
+    //       somewhere to stash them so the accept loop can keep going.
+    //       (Think about what "somewhere" needs to guarantee about lifetime
+    //       and thread-safety if the accept loop and a cleanup pass might
+    //       touch it at different times — you don't need to solve full
+    //       graceful shutdown yet, just don't paint yourself into a corner.)
+    // TODO: think about what a clean exit path even looks like here for later
+    //       — you don't have to build it now, but note it as you go.
     void RunWorker() {
         // your code here
     }
 
 }  // namespace
-
 int main() {
     transport::PlatformInit();
 
