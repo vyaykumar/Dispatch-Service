@@ -104,7 +104,7 @@ enum class ParseError : uint8_t {
     NOTE: Last-Write wins, under duplicate contention.
 */
 
-[[nodiscard]] std::expected<FieldMap, ParseError> ParseFields (const uint8_t* input_stream, const std::size_t size) {
+[[nodiscard]] inline std::expected<FieldMap, ParseError> ParseFields (const uint8_t* input_stream, const std::size_t size) {
     FieldMap output {};
 
     if (size == 0)
