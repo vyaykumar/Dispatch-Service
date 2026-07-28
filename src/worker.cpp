@@ -22,18 +22,20 @@ namespace {
     constexpr uint16_t kPort = 50051;
 
     // Handles exactly one connection, end to end, on its own thread.
-    void HandleConnection(socket_t client, std::stop_token stopToken) {
+    void HandleConnection(std::stop_token stopToken, socket_t client, std::atomic_bool& done) {
         auto dec_mes = protocol::ReceiveMessage(client);
 
         if (dec_mes == std::nullopt) {
             std::cout << "Whats's received isn't a proper message. Rejected.\n";
             transport::CloseSocket(client);
+            done.store(true);
             return;
         }
 
         if (dec_mes->type != protocol::MessageType::kTaskSubmit) {
             std::cout << "Message Type isn't submit. Rejected.\n";
             transport::CloseSocket(client);
+            done.store(true);
             return;
         }
 
@@ -61,34 +63,64 @@ namespace {
         }
 
         transport::CloseSocket(client);
+        done.store(true);
     }
 
-    // Sets up the listening socket and runs the accept loop.
-    //
-    // TODO: create a TCP socket (see main.c from Step 1's smoke test for the
-    //       exact socket()/bind()/listen() calls — same pattern applies here).
-    // TODO: loop calling accept(). For each accepted connection, spawn a
-    //       std::jthread running HandleConnection with that client socket.
-    // TODO: decide where those jthreads are kept. A std::jthread that goes out
-    //       of scope immediately will block the accept loop waiting to join it
-    //       (that defeats the point of one-thread-per-connection) — you need
-    //       somewhere to stash them so the accept loop can keep going.
-    //       (Think about what "somewhere" needs to guarantee about lifetime
-    //       and thread-safety if the accept loop and a cleanup pass might
-    //       touch it at different times — you don't need to solve full
-    //       graceful shutdown yet, just don't paint yourself into a corner.)
-    // TODO: think about what a clean exit path even looks like here for later
-    //       — you don't have to build it now, but note it as you go.
     void RunWorker() {
-        // your code here
+        socket_t sock = socket (AF_INET, SOCK_STREAM, 0);
+
+        if (sock == transport::kInvalidSocket) {
+            std::cout << "Dead Socket. Terminating.\n";
+            return;
+        }
+
+        sockaddr_in cAddr{};
+        cAddr.sin_family = AF_INET;
+        cAddr.sin_port = htons(kPort);
+        cAddr.sin_addr.s_addr = INADDR_ANY;
+
+        int opt {1};
+        setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char *>(&opt), sizeof(opt));
+        auto flag = bind(sock, reinterpret_cast<sockaddr*>(&cAddr), sizeof(cAddr));
+
+        if (flag) {
+            std::cout << "Event Logger: Binding failed.\n";
+            return;
+        }
+
+        flag = listen(sock, SOMAXCONN);
+        if (flag) {
+            std::cout << "Event Logger: Listening failed.\n";
+            return;
+        }
+
+        struct Connection {
+            std::jthread thread;
+            std::atomic_bool done {false};
+        };
+        std::vector<std::unique_ptr<Connection>> cvec {};
+
+        while (true) {
+            // Sweep
+            std::erase_if(cvec, [](const std::unique_ptr<Connection>& conn) { return conn && conn->done.load(); });
+
+            // Accept
+            socket_t client = accept(sock, nullptr, nullptr);
+            if (client == transport::kInvalidSocket)
+                continue;
+
+            auto conn = std::make_unique<Connection> ();
+            conn->thread = std::jthread(HandleConnection, client, std::ref(conn->done));
+            cvec.push_back(std::move(conn));
+        }
     }
 
 }  // namespace
 int main() {
     transport::PlatformInit();
 
-    // TODO: call RunWorker() (or inline its contents here if you'd rather
-    // not split it out — your call).
+    // TODO: call RunWorker() (or inline its contents here if you'd rather not split it out — your call).
+    RunWorker();
 
     transport::PlatformCleanup();
     return 0;
