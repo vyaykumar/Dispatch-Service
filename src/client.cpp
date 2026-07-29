@@ -47,14 +47,22 @@ int main() {
     std::cout << "[dispatcher] sent TASK_SUBMIT\n";
 
     auto ackMsg = protocol::ReceiveMessage(sock);
-    if (!ackMsg || ackMsg->type != protocol::MessageType::kTaskAck) {
-        std::cout << "[dispatcher] did not receive expected TASK_ACK\n";
+    if (!ackMsg or ackMsg->type != protocol::MessageType::kTaskAck) {
+        std::cout << "[dispatcher] Did not receive expected TASK_ACK\n";
         return 1;
     }
     std::cout << "[dispatcher] received TASK_ACK for task_id=" << ackMsg->ack.taskId << "\n";
 
     auto resultMsg = protocol::ReceiveMessage(sock);
-    if (!resultMsg || resultMsg->type != protocol::MessageType::kTaskResult) {
+
+    if (!resultMsg) {
+        std::cout << "WSA Error: "
+                  << WSAGetLastError()
+                  << '\n';
+        return 1;
+    }
+
+    if (resultMsg->type != protocol::MessageType::kTaskResult) {
         std::cout << "[dispatcher] did not receive expected TASK_RESULT\n";
         return 1;
     }

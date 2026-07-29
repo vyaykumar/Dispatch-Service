@@ -226,6 +226,12 @@ struct DecodedMessage {
     Cancel cancel;
 };
 
+enum class ReceiveError {
+    TimeOut,
+    ConnectionClosed,
+    ParseError
+};
+
 inline std::optional<DecodedMessage> ReceiveMessage(transport::socket_t s) {
     auto raw = transport::RecvFrame(s);
     if (!raw) return std::nullopt;
