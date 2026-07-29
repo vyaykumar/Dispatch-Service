@@ -6,7 +6,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_executable(smoke_test src/main.cpp)
 add_executable(worker src/worker.cpp)
+add_executable(client src/client.cpp)
+
 target_link_libraries(worker PRIVATE ws2_32)
+target_link_libraries(client PRIVATE ws2_32)
 
 if(WIN32)
     target_link_libraries(smoke_test PRIVATE ws2_32)

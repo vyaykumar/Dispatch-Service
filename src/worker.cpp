@@ -23,6 +23,7 @@ namespace {
 
     // Handles exactly one connection, end to end, on its own thread.
     void HandleConnection(std::stop_token stopToken, socket_t client, std::atomic_bool& done) {
+        std::cout << "Thread started\n";
         auto dec_mes = protocol::ReceiveMessage(client);
 
         if (dec_mes == std::nullopt) {
@@ -46,7 +47,7 @@ namespace {
             std::cout << "Event Logger: ACK passed.\n";
 
             // PLACeHOLDER: Work Section.
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            std::this_thread::sleep_for(std::chrono::seconds(2));
 
             std::string testInput {"done: Hello."};
             protocol::TaskResult res {  dec_mes->submit.taskId,
@@ -63,6 +64,8 @@ namespace {
         }
 
         transport::CloseSocket(client);
+
+        std::cout << "Thread finished\n";
         done.store(true);
     }
 
@@ -102,10 +105,12 @@ namespace {
 
         while (true) {
             // Sweep
-            std::erase_if(cvec, [](const std::unique_ptr<Connection>& conn) { return conn && conn->done.load(); });
+            std::erase_if(cvec, [](const std::unique_ptr<Connection>& conn) { std::cout << "Reaped a thread.\n"; return conn && conn->done.load(); });
 
             // Accept
             socket_t client = accept(sock, nullptr, nullptr);
+
+            std::cout << "Connection accepted.\n";
             if (client == transport::kInvalidSocket)
                 continue;
 
