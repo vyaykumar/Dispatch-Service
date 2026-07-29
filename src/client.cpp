@@ -4,6 +4,7 @@
 
 namespace {
     constexpr uint16_t kPort = 50051;
+
 }
 
 int main() {
@@ -20,6 +21,17 @@ int main() {
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(kPort);
     inet_pton(AF_INET, "127.0.0.1", &serverAddr.sin_addr);
+
+    // POSIX stuff.
+    // struct timeval timeout;
+    // timeout.tv_sec = 5; //seconds
+    // timeout.tv_usec = 0;//microseconds
+
+    DWORD timeoutMs = 5000; //Windows
+    auto flag = setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char *>(&timeoutMs), sizeof(timeoutMs));
+    if (flag != 0) {
+        std::cout << "[dispatcher] failed to set receive timeout\n";
+    }
 
     if (connect(sock, reinterpret_cast<sockaddr*>(&serverAddr), sizeof(serverAddr)) != 0) {
         std::cout << "[dispatcher] connect failed\n";
