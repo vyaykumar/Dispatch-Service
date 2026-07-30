@@ -5,7 +5,7 @@
 // Refactoring Begins.
 
 namespace {
-    constexpr DWORD timeoutMs = 3000; // for Windows
+    constexpr DWORD timeoutMs = 1500; // for Windows
     constexpr uint16_t kPort = 50051;
 
     // Following 2 are to be a context struct that is passed around. definitely.
@@ -109,7 +109,7 @@ recAck () {
         // Should we return separate error enums for non-arrival, and unexpected arrival?
         return std::unexpected(DispatchError::ACK_Failure);
 
-    std::cout << "[dispatcher]: TaskID(" << ackMsg->ack.taskId << ") acknowledged.\n";
+    std::cout << "[dispatch]: TaskID(" << ackMsg->ack.taskId << ") acknowledged.\n";
 
     return ackMsg->ack;
 }
@@ -123,27 +123,32 @@ recMes () {
     if (!resultMsg) {
         // Cause of timeout.
         if (WSAGetLastError() == WSAETIMEDOUT) {
-            std::cout << "[dispatcher]: Connection timed uut.\n";
+            std::cout << "[dispatch]: Connection timed out.\n";
             return std::unexpected(DispatchError::TimeOut);
         }
         // Any other reason.
-        std::cout << "[dispatcher]: Failed to receive message.\n";
+        std::cout << "[dispatch]: Failed to receive message.\n";
         return std::unexpected(DispatchError::Receive_Failure);
     }
 
     if (resultMsg->type != protocol::MessageType::kTaskResult) {
-        std::cout << "[dispatcher]: Expected TASK_RESULT. Received else.\n";
+        std::cout << "[dispatch]: Expected TASK_RESULT. Received else.\n";
         return std::unexpected(DispatchError::Unexpected_Message);
     }
 
     const std::string resultText(resultMsg->result.payload.begin(), resultMsg->result.payload.end());
-    std::cout << "[dispatcher]: received TASK_RESULT: status("
+    std::cout << "[dispatch]: received TASK_RESULT: status("
               << static_cast<int>(resultMsg->result.status)
               << "). Payload: \"" << resultText << "\"\n";
 
     return resultMsg->result;
 }
 
+
+void close_sock() {
+    std::cout << "[dispatch]: Socket is terminated.\n\n";
+    transport::CloseSocket(sock);
+}
 // Dispatcher.
 [[nodiscard]] std::expected<protocol::TaskResult, DispatchError>
 dispatch_once () {
@@ -166,31 +171,35 @@ dispatch_once () {
     if (auto result = recAck(); !result)
         return std::unexpected(result.error());
 
-    protocol::TaskResult msg;
-    if (auto result = recMes(); !result)
+    auto result = recMes();
+    if (!result)
         return std::unexpected(result.error());
-    else
-        msg = result.value();
 
-    return msg;
+    return result.value();
 }
 
 [[nodiscard]] std::expected<protocol::TaskResult, DispatchError>
 dispatch () {
+    auto result {dispatch_once()};
 
+    if (!result && result.error() == DispatchError::TimeOut) {
+        close_sock();
+        std::cout << "[dispatch]: First Retry.\n";
+        return dispatch_once();
+    }
+    return result;
 }
 
 int main() {
     std::cout << "[main]: Client starting\n";
     transport::PlatformInit();
 
-    auto failure = dispatch_once();
     // Switch for the failure states. // We don't need this now. errors are printed out inside the functions themselves.
-    if (failure)
+    if (auto failure = dispatch())
         std::cout << "[main]: Protocol works.\n";
     else
         std::cout << "[main]: Protocol failed.\n";
 
-    transport::CloseSocket(sock);
+    close_sock();
     transport::PlatformCleanup();
 }

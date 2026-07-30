@@ -47,6 +47,7 @@ namespace {
             std::cout << "Event Logger: ACK passed.\n";
 
             // PLACeHOLDER: Work Section.
+            std::cout << "Executing Task(" << dec_mes->submit.taskId << ").\n";
             std::this_thread::sleep_for(std::chrono::seconds(2));
 
             std::string testInput {"done: Hello."};
