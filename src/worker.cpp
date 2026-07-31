@@ -10,16 +10,29 @@
 #include <iostream>
 #include <thread>
 #include <vector>
+#include <print>
 
 #include "protocol.h"
 #include "transport.h"
 
 using transport::socket_t;
 
-
 namespace {
 
     constexpr uint16_t kPort = 50051;
+    enum class ExecutionStatus {
+        Unseen,
+        Processing,
+        Complete
+    };
+
+    struct TaskRecord {
+        ExecutionStatus status;
+        std::optional<protocol::TaskResult> result;
+    };
+
+    // Have to mutex this, cause multiple threads are going to interact with this.
+    std::unordered_map<std::string, TaskRecord> task_table;
 
     // Handles exactly one connection, end to end, on its own thread.
     void HandleConnection(std::stop_token stopToken, socket_t client, std::atomic_bool& done) {
@@ -40,29 +53,48 @@ namespace {
             return;
         }
 
-        protocol::TaskAck ack {dec_mes->submit.taskId};
+        auto taskid = dec_mes->submit.taskId;
+        protocol::TaskAck ack {taskid};
         bool flag = protocol::SendTaskAck(client, ack);
 
         if (flag) {
             std::cout << "Event Logger: ACK passed.\n";
 
             // PLACeHOLDER: Work Section.
-            std::cout << "Executing Task(" << dec_mes->submit.taskId << ").\n";
-            std::this_thread::sleep_for(std::chrono::seconds(2));
+            std::cout << "Checking for Task(" << taskid << ").\n";
+            auto exists = task_table.contains(taskid);
+            if (exists) {
+                // Entry exists, but we don't know if its in InFlight, or executed.
+                // If executed, go ahead. If inFlight, spin.
 
-            std::string testInput {"done: Hello."};
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+                // Acquire mutex lock.
+                // Retrieve value and send it.
+                std::cout << "[worker]: Result exists. Forwarding it.\n";
+            }
+            else {
+                // Entry doesn't exist. Execute.
+                std::cout << "[worker]: Result doesn't exist. Executing it.\n";
+                task_table.insert({taskid,{.status = ExecutionStatus::Processing}});
+                std::this_thread::sleep_for(std::chrono::seconds(2));
+                // Find the key and overwrite it to ExecutionStatus::Executed.
+            }
+
+            std::string testInput {"[worker]: Task executed."};
             protocol::TaskResult res {  dec_mes->submit.taskId,
                                         protocol::TaskStatus::kSucceeded,
                                         std::vector<uint8_t>(testInput.begin(), testInput.end())};
             flag = protocol::SendTaskResult(client, res);
             if (flag)
-                std::cout << "Event Logger: Result sending passed. Terminating connection.\n";
+                std::cout << "[worker]: Result sending passed. Terminating connection.\n";
             else
-                std::cout << "Event Logger: Result sending failed. Terminating connection.\n";
+                std::cout << "[worker]: Result sending failed. Terminating connection.\n";
         }
-        else {
-            std::cout << "Event Logger: Ack failed. Skipping Result. Terminating connection.\n";
-        }
+        else
+            std::cout << "[worker]: Ack failed. Skipping Result. Terminating connection.\n";
+
+        // std::println("This works.");
 
         transport::CloseSocket(client);
 
