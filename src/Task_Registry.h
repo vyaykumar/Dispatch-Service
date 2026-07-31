@@ -5,42 +5,54 @@
 #include "transport.h"
 
 namespace task_registry {
-    enum class executionStatus {
-        Fresh,          // If Fresh, execute and cache.
-        Processing,     // If Processing, reject task.
-        Completed       // If Completed, return cached.
-    };
-
-    // Class TaskRegistry : Owns the task-table, and the mutex.
-    // Methods for operation, but doesn't expose raw access.
 
     class TaskRegistry {
     public:
+        enum class executionStatus {
+            Processing,
+            Completed
+        };
+
+        enum class Action {
+            Reject,
+            Execute,
+            Cached
+        };
         struct Task {
-            executionStatus status = executionStatus::Fresh;
+            executionStatus status;
             std::optional<protocol::TaskResult> result;
         };
 
-        Task try_claim () {
+        struct Result {
+            Action action;
+            std::optional<protocol::TaskResult> result;
+        };
+
+        Result try_claim (const protocol::TaskId &id) {
             // Acquire lock.
+            std::scoped_lock lock (mutex_);
+
             // Check for status.
-            // If Fresh, return Execute.
-            // If Processing, return Reject.
-            // If Completed, return Cached.
+            switch (task_table_[id].status) {
+                case executionStatus::Processing : return {.action = Action::Reject};
+                    break;
+                case executionStatus::Completed : return {.action = Action::Cached, .result = task_table_[id].result};
+                    break;
+                default: return {.action = Action::Execute};
+            }
         }
 
-        void mark_complete () {
+        void mark_complete (protocol::TaskId id, protocol::TaskResult task) {
             // Acquire lock.
-            // Set task associated with TaskID, attached to TaskID parameter, to Completed.
-        }
+            std::scoped_lock lock (mutex_);
 
-        void fetch () const {
-            // Acquire lock. This is a read operation. Do we need to acquire lock?
-            // Return .result of the Task attached to TaskID parameter.
+            // Set task associated with TaskID, attached to TaskID parameter, to Completed.
+            task_table_[id].status = executionStatus::Completed;
+            task_table_[id].result = std::move(task);
         }
 
     private:
-        std::unordered_map<std::string, Task> status;
-        std::mutex hold;
+        std::unordered_map<protocol::TaskId, Task> task_table_;
+        std::mutex mutex_;
     };
 }

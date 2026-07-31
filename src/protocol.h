@@ -20,6 +20,7 @@
 namespace protocol {
 
 using FieldMap = std::pmr::unordered_map<uint8_t, std::vector<uint8_t>>;
+using TaskId = std::string;
 
 enum class MessageType : uint8_t {
     kTaskSubmit = 1,
