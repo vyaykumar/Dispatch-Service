@@ -18,6 +18,7 @@ namespace task_registry {
             Execute,
             Cached
         };
+
         struct Task {
             executionStatus status;
             std::optional<protocol::TaskResult> result;
@@ -32,23 +33,39 @@ namespace task_registry {
             // Acquire lock.
             std::scoped_lock lock (mutex_);
 
-            // Check for status.
-            switch (task_table_[id].status) {
-                case executionStatus::Processing : return {.action = Action::Reject};
-                    break;
-                case executionStatus::Completed : return {.action = Action::Cached, .result = task_table_[id].result};
-                    break;
-                default: return {.action = Action::Execute};
+            // Check if it exists.
+            const auto entry_it = task_table_.find(id);
+
+            // It exists.
+            if (entry_it != task_table_.end()) {
+                if (entry_it->second.status == executionStatus::Completed)
+                    return {.action = Action::Cached, .result = entry_it->second.result};
+
+                // It has to be Processing, then.
+                return {.action = Action::Reject};
             }
+
+            // It doesnt exist.
+            task_table_[id] = {.status = executionStatus::Processing};
+            return {.action = Action::Execute};
         }
 
-        void mark_complete (protocol::TaskId id, protocol::TaskResult task) {
+        void mark_complete (const protocol::TaskId &id, protocol::TaskResult task) {
             // Acquire lock.
             std::scoped_lock lock (mutex_);
 
+            // Check if id exists.
+            const auto it = task_table_.find(id);
+
+            // Incorrect input, or has been tampered with.
+            if (it == task_table_.end() or it->second.status != executionStatus::Processing) {
+                std::println("mark_complete called on non-Processing task.\nTerminating.\n");
+                std::terminate();
+            }
+
             // Set task associated with TaskID, attached to TaskID parameter, to Completed.
-            task_table_[id].status = executionStatus::Completed;
-            task_table_[id].result = std::move(task);
+            it->second.status = executionStatus::Completed;
+            it->second.result = std::move(task);
         }
 
     private:
