@@ -1,8 +1,12 @@
 # Dispatch
 
-A distributed systems project written in modern C++23, exploring fundamental distributed systems concepts through a small, understandable codebase.
+A distributed systems project written in modern C++23.
 
-The project models a simple request-processing pipeline:
+The goal of this project is to study networking, concurrency, reliability, retries, error handling, and distributed systems behaviour through a small task execution system.
+
+---
+
+# Architecture
 
 ```text
 Client
@@ -12,197 +16,338 @@ Dispatcher
    │
    ▼
 Worker
-   │
-   ├── ACK
-   │
-   └── RESULT
 ```
 
-The goal is not to build production-grade infrastructure. The goal is to explore and demonstrate: TCP networking, message protocols, concurrency, timeouts, retries, at-least-once delivery, idempotency, resource ownership (RAII), and error handling with `std::expected`.
-
----
-
-## Design Goals
-
-### Reliable Request Delivery
-
-A dispatcher submits work to a worker. The worker acknowledges receipt before executing the task.
+Messages:
 
 ```text
-TASK_SUBMIT → TASK_ACK → TASK_RESULT
+TASK_SUBMIT
+    ↓
+TASK_ACK
+    ↓
+TASK_RESULT
 ```
 
-### Timeout Handling
+---
 
-Network operations can stall. The dispatcher uses receive timeouts (`SO_RCVTIMEO`) to detect when a response may have been lost. A timeout does not imply task failure — only that the dispatcher no longer knows the task state.
+# Features
 
-### Retry Logic
+Implemented:
 
-When a timeout occurs, the dispatcher retries the request. Retries intentionally introduce the possibility of duplicate delivery.
+- TCP networking
+- Protocol framing
+- Message serialisation
+- Message deserialisation
+- Concurrent worker connections
+- Timeout handling
+- Retry handling
+- At-Least-Once delivery
+- Worker-side idempotency
+- Task ownership tracking
+- Automatic thread cleanup
+- Error handling via std::expected
+- Monadic chaining using std::expected::and_then()
 
-### At-Least-Once Delivery
+---
 
-Retries create duplicate submissions:
+# Event History
+
+## Phase 1: Protocol Layer
+
+Implemented:
+
+- transport.h
+- protocol.h
+
+Verified:
+
 ```text
-Timeout → Retry → Duplicate Submission
+TASK_SUBMIT
+TASK_ACK
+TASK_RESULT
 ```
 
-A task may be executed more than once. This is a key property of at-least-once delivery systems.
+---
 
-### Idempotency
+## Phase 2: Standalone Worker
 
-Worker-side task tracking prevents duplicate execution. The worker maintains task state and recognizes repeated submissions:
+Implemented:
+
+- Socket creation
+- Bind
+- Listen
+- Accept
+
+---
+
+## Phase 3: Concurrent Worker
+
+Implemented:
+
 ```text
-Fresh → Processing → Completed
+1 connection
+    ↓
+1 std::jthread
+```
+
+Verified concurrent execution.
+
+---
+
+## Phase 4: Dispatcher Refactor
+
+Refactored networking code into:
+
+```text
+initSock()
+initServAddr()
+initTimeOut()
+startConn()
+submitTask()
+recAck()
+recMes()
+```
+
+Introduced:
+
+```cpp
+std::expected<T, DispatchError>
+```
+
+for structured error handling.
+
+---
+
+## Phase 5: Timeouts
+
+Implemented:
+
+```text
+SO_RCVTIMEO
+```
+
+Test:
+
+```text
+Worker Runtime : 2s
+Dispatcher Timeout : 1.5s
+```
+
+Result:
+
+```text
+TASK_ACK
+    ↓
+TIMEOUT
 ```
 
 ---
 
-## Architecture
+## Phase 6: Retries
 
-**Client:** Connect to dispatcher, submit task, receive result.
+Implemented retry support.
 
-**Dispatcher:** Create connection, configure timeouts, send task requests, receive acknowledgements and results, retry when appropriate.
+Behaviour:
 
-**Worker:** Accept incoming connections, process requests concurrently (one `std::jthread` per connection), execute tasks, return results, maintain task state.
-
-Connection lifecycle per worker thread:
-1. Receive `TASK_SUBMIT`
-2. Check task registry (already executed?)
-3. Send `TASK_ACK`
-4. Execute task (or return cached result)
-5. Send `TASK_RESULT`
-6. Close connection
-
----
-
-## Current Implementation Status
-
-### Completed ✅
-
-**Protocol layer (`transport.h`, `protocol.h`):**
-- Length-prefixed frame format with partial-read/write safety
-- TLV field encoding with forward compatibility
-- Message types: `TASK_SUBMIT`, `TASK_ACK`, `TASK_RESULT`, `CANCEL`
-- Verified via round-trip smoke tests
-
-**Worker service (`worker.cpp`):**
-- Listener socket setup (bind, listen, `SO_REUSEADDR`)
-- Thread-per-connection via `std::jthread`
-- Connection lifecycle management: `vector<unique_ptr<Connection{jthread, atomic_bool done}>>` with automatic sweep/reap cleanup
-- Basic task execution (placeholder delays: 10ms for cache hit, 100ms for cache miss, 2s for actual execution)
-
-**Dispatcher client (`client.cpp`):**
-- Socket creation, address setup, timeout configuration
-- Task submission with `TASK_ACK` wait and `TASK_RESULT` wait
-- Socket read timeout configured upfront (1.5s, matching worker's 2s execution for testing timeout logic)
-- Single retry-on-timeout implemented
-- `std::expected`-based error handling with distinguishing error types
-
-**Concurrency & Timeouts:**
-- Multiple clients can submit to worker simultaneously — all execute concurrently
-- Timeout handling verified: dispatcher correctly detects when responses are slow
-- Retry logic verified: dispatcher submits same task twice on timeout (demonstrating at-least-once delivery)
-
-### In Progress 🚧
-
-**Worker refactor & idempotency:**
-- `completed_results` map exists but insert is commented out (needs thread-safety fix first)
-- `HandleConnection` currently monolithic — needs decomposition into smaller `std::expected`-returning steps (pattern mirrors `dispatch_once` in client)
-- Dedup cache needs mutex protection before re-enabling: multiple `jthread`s access it concurrently with no synchronization
-- In-flight race still open: two simultaneous submissions of the same task ID both see `contains() == false` and both execute
-
----
-
-## Building & Testing
-
-```bash
-cmake -B build
-cmake --build build
-```
-
-Binaries:
-- `worker` — listens on `localhost:50051`
-- `client` — (dispatcher) connects to worker, submits task, receives result
-
-**Testing:**
-
-Terminal 1 (worker):
-```bash
-./build/worker
-```
-
-Terminal 2 (dispatcher):
-```bash
-./build/client
-```
-
-Expected output (dispatcher):
-```
-[dispatch]: Socket initialized.
-[dispatch]: Server Address initialized.
-[dispatch]: Receive_timeout set.
-[dispatch]: Connection established.
-[dispatch]: Task submitted successfully.
-[dispatch]: TaskID(task-0001) acknowledged.
-[dispatch]: received TASK_RESULT: status(2). Payload: "done: Task executed."
-[main]: Protocol works.
-```
-
-Expected output (worker):
-```
-Connection accepted.
-Thread started
-Message Type is submit. Accepted.
-Event Logger: ACK passed.
-Checking for Task(task-0001).
-[worker]: Result doesn't exist. Executing it.
-Event Logger: Result sending passed. Terminating connection.
-Thread finished
+```text
+Timeout
+    ↓
+Retry
 ```
 
 ---
 
-## Immediate To-Do
+## Phase 7: At-Least-Once Delivery
 
-### High Priority (blocking further work)
+Observed:
 
-- [ ] **Implement thread-safe task registry** — Add `std::shared_mutex` to protect `completed_results`; distinguish task lifecycle states (in-flight vs completed) to solve the in-flight race
-- [ ] **Refactor `HandleConnection`** — Decompose into smaller `std::expected`-returning steps (receive, ack, check-cache, execute, send-result); mirror the clean composition pattern from `dispatch_once` in the dispatcher
-- [ ] **Add socket RAII wrapper** — Replace ad-hoc `transport::CloseSocket(client)` calls with a `ScopedSocket` guard (RAII pattern, consistent with `scoped_thread` from ThreadPool project)
+```text
+Executing Task(task-0001)
+Executing Task(task-0001)
+```
 
-### Medium Priority (Steps 4–5)
-
-- [ ] **Worker selection interface** — Abstract `WorkerSelector` base class; currently hardcoded single address
-- [ ] **Event log interface** — Abstract `EventLogger` base class; currently ad-hoc `std::cout` statements
-- [ ] **Graceful shutdown support** — Use `std::stop_token` in worker threads to allow clean exit on signal
-
-### Lower Priority (Steps 6–8)
-
-- [ ] **Configurable retry/backoff policy** — Currently single hardcoded retry; generalize to (max_retries, backoff_curve)
-- [ ] **Cancellation via `CANCEL` frames** — Worker-side design for handling mid-task cancellation
-- [ ] **Dynamic task ID generation** — Replace hardcoded `"task-0001"`; UUID or sequential counter
-
-### Long Term
-
-- [ ] Persistence-backed task state (for worker recovery after restart)
-- [ ] Multiple worker support with routing
-- [ ] Connection pooling
-- [ ] Metrics and observability
-- [ ] Exactly-once semantics investigation
+A single logical task could execute multiple times.
 
 ---
 
-## Learning Objectives
+## Phase 8: Worker Idempotency
 
-This project serves as a practical study of:
-- Modern C++23 (`std::expected`, `std::jthread`, `std::span`, `std::string_view`)
-- TCP networking and socket programming
-- Message protocol design (framing, serialization, forward compatibility)
-- Concurrency patterns (thread-per-connection, task tracking, synchronization)
-- Distributed systems concepts (at-least-once delivery, idempotency, timeouts, retries)
-- Resource ownership and RAII
-- Error handling and failure modes
-- System design trade-offs
+Implemented:
 
-Code intentionally favours clarity and experimentation over production complexity.
+```text
+TaskRegistry
+```
+
+Task lifecycle:
+
+```text
+Absent
+    ↓
+Processing
+    ↓
+Completed
+```
+
+Worker actions:
+
+```text
+Absent
+    ↓
+Execute
+
+Processing
+    ↓
+Reject
+
+Completed
+    ↓
+Cached
+```
+
+Introduced:
+
+```cpp
+std::mutex
+std::unordered_map
+```
+
+to protect task ownership.
+
+---
+
+## Phase 9: HandleConnection Refactor
+
+Split responsibilities into:
+
+```text
+ReceiveMessage()
+SendACK()
+SubmitACK()
+Process()
+work()
+SendResult()
+```
+
+Introduced monadic chains using:
+
+```cpp
+std::expected
+.and_then()
+.transform()
+```
+
+---
+
+## Phase 10: Duplicate Suppression Validation
+
+Test:
+
+```text
+Worker Runtime : 2s
+Dispatcher Timeout : 1.5s
+Retry Enabled
+```
+
+Observed:
+
+```text
+EXECUTE
+REJECT
+```
+
+for the same TaskId.
+
+Result:
+
+```text
+Duplicate delivery detected.
+Duplicate execution prevented.
+```
+
+The system now demonstrates:
+
+```text
+At-Least-Once Delivery
++
+Idempotent Execution
+```
+
+---
+
+# Current Status
+
+Completed:
+
+- Protocol Layer
+- Dispatcher
+- Worker
+- Concurrency
+- Timeouts
+- Retries
+- At-Least-Once Delivery
+- Task Ownership Tracking
+- Idempotent Execution
+- std::expected Error Handling
+
+In Progress:
+
+- Completed → Cached validation
+- Wait-On-Processing duplicates
+
+Planned:
+
+- Experiment Runner
+- Preset Workloads
+- Server Assigned UUID Task IDs
+- Socket RAII
+- Graceful Shutdown
+- Multi-Worker Routing
+
+---
+
+# Next Milestone
+
+Validate:
+
+```text
+Completed
+    ↓
+Cached
+```
+
+Expected behaviour:
+
+```text
+EXECUTE
+CACHED
+```
+
+with exactly one task execution.
+
+---
+
+# Long-Term Goals
+
+- Preset workload framework
+- Scenario execution harness
+- UUID task assignment
+- Graceful shutdown
+- Multiple workers
+- Routing
+- Reliability experiments
+- Failure injection
+- Exactly-once investigations
+
+---
+
+# Learning Objectives
+
+- Modern C++23
+- Networking
+- Concurrency
+- RAII
+- std::expected
+- Distributed Systems
+- Idempotency
+- Reliability Guarantees
+- System Design

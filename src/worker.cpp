@@ -10,96 +10,134 @@
 #include <iostream>
 #include <thread>
 #include <vector>
-#include <print>
+#include <iostream>
+#include <functional>
 
 #include "protocol.h"
 #include "transport.h"
+#include "Task_Registry.h"
+#include "defer.h"
 
 using transport::socket_t;
 
 namespace {
+    // Debug stuff.
+    constexpr uint64_t sleep_time_s {2};
 
+    // Usual Stuff.
     constexpr uint16_t kPort = 50051;
-    enum class ExecutionStatus {
-        Unseen,
-        Processing,
-        Complete
+    task_registry::TaskRegistry g_registry;
+
+    enum class ErrorStates {
+        MalformedMessage,
+        AnomalousMessage,
+        ACKFailure,
+        JobExists
     };
 
-    struct TaskRecord {
-        ExecutionStatus status;
-        std::optional<protocol::TaskResult> result;
-    };
+    std::expected<protocol::DecodedMessage, ErrorStates> ReceiveMessage (const socket_t client) {
+        auto message = protocol::ReceiveMessage(client);
 
-    // Have to mutex this, cause multiple threads are going to interact with this.
-    std::unordered_map<std::string, TaskRecord> task_table;
-
-    // Handles exactly one connection, end to end, on its own thread.
-    void HandleConnection(std::stop_token stopToken, socket_t client, std::atomic_bool& done) {
-        std::cout << "Thread started\n";
-        auto dec_mes = protocol::ReceiveMessage(client);
-
-        if (dec_mes == std::nullopt) {
-            std::cout << "Whats's received isn't a proper message. Rejected.\n";
-            transport::CloseSocket(client);
-            done.store(true);
-            return;
+        // Malformed Message
+        if (message == std::nullopt) {
+            std::cout << "[worker]: Malformed message. Rejected.\n";
+            return std::unexpected(ErrorStates::MalformedMessage);
         }
 
-        if (dec_mes->type != protocol::MessageType::kTaskSubmit) {
-            std::cout << "Message Type isn't submit. Rejected.\n";
-            transport::CloseSocket(client);
-            done.store(true);
-            return;
+        // Out-Of-Sequence
+        if (message->type != protocol::MessageType::kTaskSubmit) {
+            std::cout << "[worker]: Incorrect type of message received. Rejected.\n";
+            return std::unexpected(ErrorStates::AnomalousMessage);
         }
 
-        auto taskid = dec_mes->submit.taskId;
-        protocol::TaskAck ack {taskid};
-        bool flag = protocol::SendTaskAck(client, ack);
+        return std::move(message.value());
+    }
 
-        if (flag) {
-            std::cout << "Event Logger: ACK passed.\n";
-
-            // PLACeHOLDER: Work Section.
-            std::cout << "Checking for Task(" << taskid << ").\n";
-            auto exists = task_table.contains(taskid);
-            if (exists) {
-                // Entry exists, but we don't know if its in InFlight, or executed.
-                // If executed, go ahead. If inFlight, spin.
-
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-                // Acquire mutex lock.
-                // Retrieve value and send it.
-                std::cout << "[worker]: Result exists. Forwarding it.\n";
-            }
-            else {
-                // Entry doesn't exist. Execute.
-                std::cout << "[worker]: Result doesn't exist. Executing it.\n";
-                task_table.insert({taskid,{.status = ExecutionStatus::Processing}});
-                std::this_thread::sleep_for(std::chrono::seconds(2));
-                // Find the key and overwrite it to ExecutionStatus::Executed.
-            }
-
-            std::string testInput {"[worker]: Task executed."};
-            protocol::TaskResult res {  dec_mes->submit.taskId,
-                                        protocol::TaskStatus::kSucceeded,
-                                        std::vector<uint8_t>(testInput.begin(), testInput.end())};
-            flag = protocol::SendTaskResult(client, res);
-            if (flag)
-                std::cout << "[worker]: Result sending passed. Terminating connection.\n";
-            else
-                std::cout << "[worker]: Result sending failed. Terminating connection.\n";
+    // 2. void* recSub                - Protocol Handshake: Send the ACK.
+    std::expected <void, ErrorStates> SendACK (const socket_t client, const protocol::TaskId& taskID) {
+        // Quick return, in case of failure.
+        if (!protocol::SendTaskAck(client, {taskID})) {
+            std::cout << "[worker]: ACK Failure. Rejected.\n";
+            return std::unexpected(ErrorStates::ACKFailure);
         }
+        std::cout << "[worker]: ACK sent successfully.\n";
+        return {};
+    }
+
+    // Monadic chain function
+    std::expected<protocol::DecodedMessage, ErrorStates> SubmitACK(const socket_t client, protocol::DecodedMessage message)
+    {
+        return SendACK(
+            client,
+            message.submit.taskId
+        )
+        .transform([msg = std::move(message)]() mutable
+        {
+            return std::move(msg);
+        });
+    }
+
+    protocol::TaskResult work(const protocol::TaskId &taskID) {
+        // We know that there exists only one copy of the job.
+        // execute_function(function);
+        std::this_thread::sleep_for(std::chrono::seconds(sleep_time_s));
+
+        std::string resPayload {"[worker]: Task(" + taskID + ") executed."};
+
+        const protocol::TaskResult res {
+            .taskId = taskID,
+            .status = protocol::TaskStatus::kSucceeded,
+            .payload = std::vector<uint8_t>(resPayload.begin(), resPayload.end())
+        };
+
+        g_registry.mark_complete(taskID, res);
+        return res;
+    }
+
+    std::expected<protocol::TaskResult, ErrorStates> Process (const protocol::TaskId& taskID) {
+        using Action = task_registry::Action;
+
+        // Check for task in Task_Registry.
+        std::cout << "Checking for Task(" << taskID << ").\n";
+
+        // `action` tells us what to do.
+        switch (auto [action, result] = g_registry.try_claim(taskID); action) {
+            case Action::Reject  : std::cout << "REJECT\n"; return std::unexpected (ErrorStates::JobExists);
+            case Action::Execute : std::cout << "EXECUTE\n"; return std::move (work(taskID));
+            case Action::Cached  : std::cout << "CACHED\n"; return std::move (result.value());
+        }
+        return {};
+    }
+
+    // 5. void* SendResult            - Response: Build and send the TASK_RESULT, close the socket, flip done.
+
+    std::expected<void, ErrorStates> SendResult (const socket_t client, const protocol::TaskResult& result) {
+        if (protocol::SendTaskResult(client, result))
+            std::cout << "[worker]: Result successfully sent.\n";
         else
-            std::cout << "[worker]: Ack failed. Skipping Result. Terminating connection.\n";
+            std::cout << "[worker]: Result for taskID(" << result.taskId << ") couldn't be sent.\n";
 
-        // std::println("This works.");
+        std::cout << "[worker]: Terminating.\n";
+        return {};
+    }
 
-        transport::CloseSocket(client);
 
-        std::cout << "Thread finished\n";
-        done.store(true);
+    void HandleConnection(const std::stop_token& stopToken, const socket_t client, std::atomic_bool& done) {
+        // Preprocessor RAII magic.
+        defer(transport::CloseSocket(client));
+        defer(done.store(true));
+
+        // Function starts here.
+        std::cout << "[worker]: Thread started.\n";
+
+        const auto message = ReceiveMessage(client).and_then(std::bind_front(SubmitACK, client));
+        if (!message)
+            return;
+
+        if (const auto result = Process(message.value().submit.taskId).and_then(std::bind_front(SendResult, client)); !result)
+            return;
+
+        std::cout << "Thread finished.\n";
     }
 
     void RunWorker() {
@@ -138,7 +176,7 @@ namespace {
 
         while (true) {
             // Sweep
-            std::erase_if(cvec, [](const std::unique_ptr<Connection>& conn) { std::cout << "Reaped a thread.\n"; return conn && conn->done.load(); });
+            std::erase_if(cvec, [](const std::unique_ptr<Connection>& conn) { if (conn->done.load()) std::cout << "Reaped a thread.\n"; return conn && conn->done.load(); });
 
             // Accept
             socket_t client = accept(sock, nullptr, nullptr);

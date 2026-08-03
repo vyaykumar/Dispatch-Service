@@ -18,9 +18,6 @@ namespace {
         JobExists
     };
 
-
-    // Functions yonder. void* is a placeholder.
-
     std::expected<protocol::DecodedMessage, ErrorStates> ReceiveMessage (const socket_t client) {
         auto message = protocol::ReceiveMessage(client);
 

@@ -65,7 +65,7 @@ namespace task_registry {
 
             // Incorrect input, or has been tampered with.
             if (it == task_table_.end() or it->second.status != ExecutionStatus::Processing) {
-                std::println("mark_complete called on non-Processing task.\nTerminating.\n");
+                std::cout << "Function mark_complete called on non-Processing task.\nTerminating.\n";
                 std::terminate();
             }
 
