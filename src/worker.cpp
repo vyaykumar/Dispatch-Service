@@ -7,11 +7,11 @@
 #include <thread>
 #include <vector>
 
-#include "protocol.h"
+#include "utility/Wire/protocol.h"
 #include "transport.h"
-#include "Task_Registry.h"
-#include "defer.h"
-#include "workloads.h"
+#include "utility/Task_Registry.h"
+#include "utility/defer.h"
+#include "utility/work/workloads.h"
 
 using transport::socket_t;
 

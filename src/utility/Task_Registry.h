@@ -5,7 +5,7 @@
 #include <unordered_map>
 #include <utility>
 
-#include "protocol.h"
+#include "Wire/protocol.h"
 
 namespace task_registry {
 

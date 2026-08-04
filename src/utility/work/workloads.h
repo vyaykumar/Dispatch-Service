@@ -1,7 +1,7 @@
 #pragma once
 #include <chrono>
 
-#include "protocol.h"
+#include "../Wire/protocol.h"
 
 namespace work {
     enum class Workload {

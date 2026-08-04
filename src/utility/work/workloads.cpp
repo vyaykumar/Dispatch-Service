@@ -4,11 +4,11 @@
 #include <thread>
 #include <vector>
 
-#include "workloads.h"
+#include "../workloads.h"
 
 #include <utility>
 
-#include "protocol.h"
+#include "../Wire/protocol.h"
 
 
 namespace work {

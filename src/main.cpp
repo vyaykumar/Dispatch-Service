@@ -10,7 +10,7 @@
 #include <iostream>
 #include <thread>
 
-#include "protocol.h"
+#include "utility/Wire/protocol.h"
 #include "transport.h"
 
 using transport::socket_t;

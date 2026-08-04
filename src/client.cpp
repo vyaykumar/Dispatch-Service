@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-#include "protocol.h"
+#include "utility/Wire/protocol.h"
 #include "transport.h"
 
 // Refactoring Begins.
