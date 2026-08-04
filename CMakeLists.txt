@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_executable(smoke_test src/main.cpp)
-add_executable(worker src/worker.cpp)
+add_executable(worker src/worker.cpp src/workloads.cpp)
 add_executable(client src/client.cpp)
 
 target_link_libraries(worker PRIVATE ws2_32)

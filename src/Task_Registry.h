@@ -23,26 +23,24 @@ namespace task_registry {
     class TaskRegistry {
     public:
 
-
-        struct Task {
-            ExecutionStatus status;
-            std::optional<protocol::TaskResult> result;
+        struct TaskRecord {
+            ExecutionStatus status {};
+            std::optional<protocol::TaskResult> result {};
         };
 
         struct Result {
-            Action action;
-            std::optional<protocol::TaskResult> result;
+            Action action {};
+            std::optional<protocol::TaskResult> result {};
         };
 
         Result try_claim (const protocol::TaskId &id) {
             // Acquire lock.
             std::scoped_lock lock (mutex_);
 
-            // Check if it exists.
-            const auto entry_it = task_table_.find(id);
+            //
 
-            // It exists.
-            if (entry_it != task_table_.end()) {
+            // Check if it exists. And it does.
+            if (const auto entry_it = task_table_.find(id); entry_it != task_table_.end()) {
                 if (entry_it->second.status == ExecutionStatus::Completed)
                     return {.action = Action::Cached, .result = entry_it->second.result};
 
@@ -74,7 +72,7 @@ namespace task_registry {
         }
 
     private:
-        std::unordered_map<protocol::TaskId, Task> task_table_;
+        std::unordered_map<protocol::TaskId, TaskRecord> task_table_;
         std::mutex mutex_;
     };
 }

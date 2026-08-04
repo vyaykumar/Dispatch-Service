@@ -11,6 +11,7 @@
 #include "transport.h"
 #include "Task_Registry.h"
 #include "defer.h"
+#include "workloads.h"
 
 using transport::socket_t;
 
@@ -44,7 +45,7 @@ namespace {
             return std::unexpected(ErrorStates::AnomalousMessage);
         }
 
-        return std::move(message.value());
+        return message.value();
     }
 
     // 2. void* recSub                - Protocol Handshake: Send the ACK.
@@ -71,20 +72,10 @@ namespace {
         });
     }
 
-    // protocol::TaskResult
+    protocol::TaskResult Execute(const protocol::TaskId &taskID) {
+        // std::this_thread::sleep_for(std::chrono::seconds(sleep_time_s));
 
-    protocol::TaskResult work(const protocol::TaskId &taskID) {
-        // We know that there exists only one copy of the job.
-        // execute_function(function);
-        std::this_thread::sleep_for(std::chrono::seconds(sleep_time_s));
-
-        std::string resPayload {"[worker]: Task(" + taskID + ") executed."};
-
-        const protocol::TaskResult res {
-            .taskId = taskID,
-            .status = protocol::TaskStatus::kSucceeded,
-            .payload = std::vector<uint8_t>(resPayload.begin(), resPayload.end())
-        };
+        auto res = work::ExecuteWorkload(config, taskID);
 
         g_registry.mark_complete(taskID, res);
         return res;
@@ -99,7 +90,7 @@ namespace {
         // `action` tells us what to do.
         switch (auto [action, result] = g_registry.try_claim(taskID); action) {
             case Action::Reject  : std::cout << "REJECT\n"; return std::unexpected (ErrorStates::JobExists);
-            case Action::Execute : std::cout << "EXECUTE\n"; return std::move (work(taskID));
+            case Action::Execute : std::cout << "EXECUTE\n"; return std::move (Execute(taskID));
             case Action::Cached  : std::cout << "CACHED\n"; return std::move (result.value());
         }
         return {};
