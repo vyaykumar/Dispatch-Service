@@ -1,7 +1,13 @@
-//Everything. for now.
-#include <bits/stdc++.h>
+#include <chrono>
+#include <optional>
+#include <string>
+#include <thread>
+#include <vector>
 
 #include "workloads.h"
+
+#include <utility>
+
 #include "protocol.h"
 
 
@@ -18,7 +24,6 @@ namespace work {
             return result;
         }
 
-        // Almost all of the 4 can be rolled into one.
         protocol::TaskResult doExecute (const protocol::TaskId& taskID, const protocol::TaskStatus status, const std::optional<std::chrono::milliseconds> time) {
         if (time.has_value()) std::this_thread::sleep_for(time.value());
         return std::move(CreateMessage(taskID, status));
@@ -36,7 +41,7 @@ namespace work {
             case Workload::DelayedFailure:
                 return doExecute(taskID, protocol::TaskStatus::kFailed, config.duration);
         }
-        std::terminate();
+        std::unreachable();
     }
 
 }

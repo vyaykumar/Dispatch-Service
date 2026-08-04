@@ -17,7 +17,10 @@ using transport::socket_t;
 
 namespace {
     // Debug stuff.
-    constexpr uint64_t sleep_time_s {2};
+    constexpr work::Config config {
+        .type = work::Workload::SlowSuccess,
+        .duration = std::chrono::seconds(2)
+    };
 
     // Usual Stuff.
     constexpr uint16_t kPort = 50051;
@@ -73,10 +76,7 @@ namespace {
     }
 
     protocol::TaskResult Execute(const protocol::TaskId &taskID) {
-        // std::this_thread::sleep_for(std::chrono::seconds(sleep_time_s));
-
         auto res = work::ExecuteWorkload(config, taskID);
-
         g_registry.mark_complete(taskID, res);
         return res;
     }
