@@ -7,13 +7,16 @@
 
 #pragma once
 
+#include <bit>
 #include <cstdint>
 #include <cstring>
-#include <unordered_map>
-#include <optional>
-#include <string>
-#include <vector>
 #include <expected>
+#include <optional>
+#include <span>
+#include <string>
+#include <string_view>
+#include <unordered_map>
+#include <vector>
 
 #include "transport.h"
 

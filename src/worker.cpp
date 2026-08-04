@@ -1,17 +1,11 @@
-// worker.cc — standalone worker service (Step 2).
-//
-// Long-running process. Listens for dispatcher connections and handles
-// each one on its own std::jthread: receive TASK_SUBMIT -> send TASK_ACK
-// -> "execute" -> send TASK_RESULT.
-//
-// Reuses transport.h/protocol.h from Step 1 as-is — no changes needed
-// there. This file is the only thing you're writing.
-
+#include <atomic>
+#include <chrono>
+#include <expected>
+#include <functional>
 #include <iostream>
+#include <memory>
 #include <thread>
 #include <vector>
-#include <iostream>
-#include <functional>
 
 #include "protocol.h"
 #include "transport.h"
@@ -77,6 +71,8 @@ namespace {
         });
     }
 
+    // protocol::TaskResult
+
     protocol::TaskResult work(const protocol::TaskId &taskID) {
         // We know that there exists only one copy of the job.
         // execute_function(function);
@@ -137,7 +133,7 @@ namespace {
         if (const auto result = Process(message.value().submit.taskId).and_then(std::bind_front(SendResult, client)); !result)
             return;
 
-        std::cout << "Thread finished.\n";
+        std::cout << "Thread finished.\n\n";
     }
 
     void RunWorker() {
