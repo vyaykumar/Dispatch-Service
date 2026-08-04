@@ -1,14 +1,15 @@
+
+
 #include <chrono>
 #include <optional>
 #include <string>
 #include <thread>
 #include <vector>
 
-#include "../workloads.h"
-
-#include <utility>
-
+#include "workloads.h"
 #include "../Wire/protocol.h"
+#include "../random/random_utils.h"
+#include <utility>
 
 
 namespace work {
@@ -26,7 +27,13 @@ namespace work {
 
         protocol::TaskResult doExecute (const protocol::TaskId& taskID, const protocol::TaskStatus status, const std::optional<std::chrono::milliseconds> time) {
         if (time.has_value()) std::this_thread::sleep_for(time.value());
-        return std::move(CreateMessage(taskID, status));
+        return CreateMessage(taskID, status);
+        }
+
+        protocol::TaskStatus Chance (const double probability) {
+            if (rando::Success(probability))
+                return protocol::TaskStatus::kSucceeded;
+            return protocol::TaskStatus::kFailed;
         }
     }
 
@@ -40,6 +47,10 @@ namespace work {
                 return doExecute(taskID, protocol::TaskStatus::kFailed, std::nullopt);
             case Workload::DelayedFailure:
                 return doExecute(taskID, protocol::TaskStatus::kFailed, config.duration);
+            case Workload::RandomChance:
+                return doExecute(taskID, Chance(0.7), rando::Delay(1000, 5000));
+            case Workload::RandomDelay:
+                return doExecute(taskID, protocol::TaskStatus::kSucceeded, rando::Delay(1000, 5000));
         }
         std::unreachable();
     }

@@ -8,7 +8,9 @@ namespace work {
         SlowSuccess,
         FastSuccess,
         ImmediateFailure,
-        DelayedFailure
+        DelayedFailure,
+        RandomChance,
+        RandomDelay
     };
 
     struct Config {
