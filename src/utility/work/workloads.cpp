@@ -12,7 +12,7 @@
 #include <utility>
 
 
-namespace work {
+namespace work_l {
     namespace {
         protocol::TaskResult CreateMessage (const protocol::TaskId& taskID, const protocol::TaskStatus status) {
             std::string resPayload {"[worker]: Task(" + taskID + ") executed."};
@@ -37,7 +37,7 @@ namespace work {
         }
     }
 
-    protocol::TaskResult ExecuteWorkload (const Config &config, const protocol::TaskId &taskID) {
+    protocol::TaskResult ExecuteWorkload (const work_l::Config &config, const protocol::TaskId &taskID) {
         switch (config.type) {
             case Workload::SlowSuccess:
                 return doExecute(taskID, protocol::TaskStatus::kSucceeded, config.duration);

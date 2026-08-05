@@ -3,7 +3,7 @@
 
 #include "../Wire/protocol.h"
 
-namespace work {
+namespace work_l {
     enum class Workload {
         SlowSuccess,
         FastSuccess,
