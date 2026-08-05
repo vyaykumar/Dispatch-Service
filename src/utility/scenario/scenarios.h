@@ -2,7 +2,7 @@
 #include <chrono>
 #include <cstddef>
 
-#include "../work/workloads.h"
+#include "../workload/workload.h"
 
 namespace scenario {
     enum class Scenario {

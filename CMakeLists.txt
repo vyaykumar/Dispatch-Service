@@ -4,13 +4,17 @@ project(dispatch_service_smoketest CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_executable(smoke_test src/main.cpp)
-add_executable(worker src/worker.cpp src/utility/work/workloads.cpp
+add_executable(smoke_test
+        src/main.cpp)
+add_executable(worker
+        src/worker.cpp
+        src/utility/workload/workload.cpp
         src/utility/random/random_utils.cpp
         src/utility/random/random_utils.h
         src/utility/runner/runner.cpp
         src/utility/runner/runner.h)
-add_executable(client src/client.cpp
+add_executable(client
+        src/client.cpp
         src/utility/random/random_utils.cpp
         src/utility/random/random_utils.h)
 

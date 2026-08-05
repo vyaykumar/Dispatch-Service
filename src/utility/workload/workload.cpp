@@ -1,12 +1,10 @@
-
-
 #include <chrono>
 #include <optional>
 #include <string>
 #include <thread>
 #include <vector>
 
-#include "workloads.h"
+#include "workload.h"
 #include "../Wire/protocol.h"
 #include "../random/random_utils.h"
 #include <utility>
