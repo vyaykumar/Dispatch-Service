@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "transport.h"
+#include "../work/workload_types.h"
 
 namespace protocol {
 
@@ -37,6 +38,7 @@ namespace protocol {
         kIdempotencyKey = 2,
         kStatus = 3,
         kPayload = 4,
+        kWorkload = 5,
     };
 
     enum class ParseError : uint8_t {
@@ -66,7 +68,7 @@ namespace protocol {
 
             payload_.emplace_back(value);
         }
-        void AddRaw(FieldId id, std::span<const uint8_t> value) {
+        void AddRaw(const FieldId id, std::span<const uint8_t> value) {
             AddField(id,value.size());
 
             payload_.insert(payload_.end(), value.begin(), value.end());
@@ -141,7 +143,7 @@ namespace protocol {
     inline std::string FieldAsString(const FieldMap& fields, FieldId id) {
         auto it = fields.find(static_cast<uint8_t>(id));
         if (it == fields.end()) return {};
-        return std::string(it->second.begin(), it->second.end());
+        return {it->second.begin(), it->second.end()};
     }
 
 
@@ -151,6 +153,7 @@ namespace protocol {
         std::string taskId;
         std::string idempotencyKey;
         std::vector<uint8_t> payload;
+        work_l::Workload workload = work_l::Workload::SlowSuccess;
     };
 
     struct TaskAck {
@@ -175,6 +178,7 @@ namespace protocol {
         w.AddString(FieldId::kTaskId, msg.taskId);
         w.AddString(FieldId::kIdempotencyKey, msg.idempotencyKey);
         w.AddRaw(FieldId::kPayload, msg.payload);
+        w.AddByte(FieldId::kWorkload, static_cast<uint8_t>(msg.workload));
         return transport::SendFrame(s, static_cast<uint8_t>(MessageType::kTaskSubmit), std::move(w).finish());
     }
 
@@ -215,7 +219,7 @@ namespace protocol {
         ParseError
     };
 
-    inline std::optional<DecodedMessage> ReceiveMessage(transport::socket_t s) {
+    inline std::optional<DecodedMessage> ReceiveMessage(const transport::socket_t s) {
         auto raw = transport::RecvFrame(s);
         if (!raw) return std::nullopt;
 
@@ -229,8 +233,11 @@ namespace protocol {
             case MessageType::kTaskSubmit: {
                 msg.submit.taskId = FieldAsString(*fields, FieldId::kTaskId);
                 msg.submit.idempotencyKey = FieldAsString(*fields, FieldId::kIdempotencyKey);
-                auto it = fields->find(static_cast<uint8_t>(FieldId::kPayload));
-                if (it != fields->end()) msg.submit.payload = it->second;
+                if (auto pay_it = fields->find(static_cast<uint8_t>(FieldId::kPayload)); pay_it != fields->end())
+                    msg.submit.payload = pay_it->second;
+                if (auto work_it = fields->find(static_cast<uint8_t>(FieldId::kWorkload));
+                    work_it != fields->end() and !work_it->second.empty())
+                    msg.submit.workload = static_cast<work_l::Workload>(work_it->second[0]);
                 break;
             }
             case MessageType::kTaskAck: {

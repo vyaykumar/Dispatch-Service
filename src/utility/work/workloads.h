@@ -2,16 +2,9 @@
 #include <chrono>
 
 #include "../Wire/protocol.h"
+#include "workload_types.h"
 
 namespace work_l {
-    enum class Workload {
-        SlowSuccess,
-        FastSuccess,
-        ImmediateFailure,
-        DelayedFailure,
-        RandomChance,
-        RandomDelay
-    };
 
     struct Config {
         Workload type { Workload::SlowSuccess };
