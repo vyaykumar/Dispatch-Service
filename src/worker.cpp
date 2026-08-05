@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "utility/Wire/protocol.h"
-#include "transport.h"
 #include "utility/Task_Registry.h"
 #include "utility/defer.h"
 #include "utility/work/workloads.h"
@@ -17,8 +16,8 @@ using transport::socket_t;
 
 namespace {
     // Debug stuff.
-    constexpr work::Config config {
-        .type = work::Workload::SlowSuccess,
+    constexpr work_l::Config g_config {
+        .type = work_l::Workload::SlowSuccess,
         .duration = std::chrono::seconds(2)
     };
 
@@ -75,8 +74,8 @@ namespace {
         });
     }
 
-    protocol::TaskResult Execute(const protocol::TaskId &taskID) {
-        auto res = work::ExecuteWorkload(config, taskID);
+    protocol::TaskResult Execute(const protocol::TaskId &taskID, const work_l::Config conf = g_config) {
+        auto res = work_l::ExecuteWorkload(conf, taskID);
         g_registry.mark_complete(taskID, res);
         return res;
     }
