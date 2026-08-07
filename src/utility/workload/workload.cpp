@@ -35,7 +35,7 @@ namespace work_l {
         }
     }
 
-    protocol::TaskResult ExecuteWorkload (const work_l::Config &config, const protocol::TaskId &taskID) {
+    protocol::TaskResult ExecuteWorkload (const Config &config, const protocol::TaskId &taskID) {
         switch (config.type) {
             case Workload::SlowSuccess:
                 return doExecute(taskID, protocol::TaskStatus::kSucceeded, config.duration);

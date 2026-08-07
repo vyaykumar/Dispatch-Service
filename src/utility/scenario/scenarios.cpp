@@ -13,10 +13,10 @@ namespace scenario {
             .scene = Scenario::HappyPath,
             .workload {
                 .type = work_l::Workload::FastSuccess,
-                // .duration; this defaults to 0, in doExecute.
+                .duration = std::chrono::milliseconds(0),
             },
             .clients = 1,
-            // .stagger = 0; This is empty-curly-initialized.
+            .stagger = std::chrono::milliseconds(0),
         };
     }
 
@@ -25,10 +25,10 @@ namespace scenario {
             .scene = Scenario::TimeoutRetry,
             .workload {
                 .type = work_l::Workload::SlowSuccess,
-                .duration = std::chrono::milliseconds(1200) // Hardcode this?
+                .duration = std::chrono::milliseconds(2500),
             },
             .clients = 1,
-            // .stagger = 0;
+            .stagger = std::chrono::milliseconds(0),
         };
     }
 
@@ -36,11 +36,11 @@ namespace scenario {
         return {
             .scene = Scenario::CachedResult,
             .workload {
-                .type = work_l::Workload::DelayedFailure,   // What does delayed failure even mean?
-                .duration = std::chrono::milliseconds(1200) // First has to timeout
+                .type = work_l::Workload::SlowSuccess,
+                .duration = std::chrono::milliseconds(2000),
             },
             .clients = 2,
-            .stagger = std::chrono::milliseconds(2100) //More than timeout, but not by much.
+            .stagger = std::chrono::milliseconds(2500),
         };
     }
 
@@ -49,10 +49,10 @@ namespace scenario {
             .scene = Scenario::ConcurrentClients,
             .workload {
                 .type = work_l::Workload::SlowSuccess,
-                // .duration = std::chrono::milliseconds(1200) // Hardcode this?
+                .duration = std::chrono::milliseconds(1500),
             },
             .clients = 4,
-            .stagger = std::chrono::milliseconds(0) // All at once?
+            .stagger = std::chrono::milliseconds(0),
         };
     }
 }

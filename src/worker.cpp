@@ -10,7 +10,7 @@
 #include "utility/Wire/protocol.h"
 #include "utility/Task_Registry.h"
 #include "utility/defer.h"
-#include "utility/work/workloads.h"
+#include "utility/workload/workload.h"
 
 using transport::socket_t;
 
@@ -74,13 +74,38 @@ namespace {
         });
     }
 
-    protocol::TaskResult Execute(const protocol::TaskId &taskID, const work_l::Config conf = g_config) {
+    protocol::TaskResult Execute(const protocol::TaskId &taskID, const work_l::Workload& workload) {
+        work_l::Config conf {};
+        switch (workload) {
+            case work_l::Workload::SlowSuccess:
+                conf.duration = std::chrono::milliseconds(2000);
+                conf.type = workload;
+                break;
+            case work_l::Workload::FastSuccess:
+                conf.duration = std::chrono::milliseconds(0);
+                conf.type = workload;
+                break;
+            case work_l::Workload::ImmediateFailure:
+                conf.duration = std::chrono::milliseconds(0);
+                conf.type = workload;
+                break;
+            case work_l::Workload::DelayedFailure:
+                conf.duration = std::chrono::milliseconds(2000);
+                conf.type = workload;
+                break;
+            case work_l::Workload::RandomChance:
+            case work_l::Workload::RandomDelay:
+                // Add random.
+                conf.type = workload;
+                break;
+        }
+
         auto res = work_l::ExecuteWorkload(conf, taskID);
         g_registry.mark_complete(taskID, res);
         return res;
     }
 
-    std::expected<protocol::TaskResult, ErrorStates> Process (const protocol::TaskId& taskID) {
+    std::expected<protocol::TaskResult, ErrorStates> Process (const protocol::TaskId& taskID, work_l::Workload workload) {
         using Action = task_registry::Action;
 
         // Check for task in Task_Registry.
@@ -89,7 +114,7 @@ namespace {
         // `action` tells us what to do.
         switch (auto [action, result] = g_registry.try_claim(taskID); action) {
             case Action::Reject  : std::cout << "REJECT\n"; return std::unexpected (ErrorStates::JobExists);
-            case Action::Execute : std::cout << "EXECUTE\n"; return std::move (Execute(taskID));
+            case Action::Execute : std::cout << "EXECUTE\n"; return std::move (Execute(taskID, workload));
             case Action::Cached  : std::cout << "CACHED\n"; return std::move (result.value());
         }
         return {};
@@ -120,7 +145,7 @@ namespace {
         if (!message)
             return;
 
-        if (const auto result = Process(message.value().submit.taskId).and_then(std::bind_front(SendResult, client)); !result)
+        if (const auto result = Process(message.value().submit.taskId, message->submit.workload).and_then(std::bind_front(SendResult, client)); !result)
             return;
 
         std::cout << "Thread finished.\n\n";
