@@ -1,6 +1,7 @@
 #include "client_interface.h"
-
 #include "../defer.h"
+
+//////////              TO BE ENTIRELY REFACTORED              //////////
 
 namespace client {
     namespace {
@@ -30,13 +31,6 @@ namespace client {
         /***   Network Stuff     ***/
         void initSock(ExecConfig& conf) {
             // if (timed_out(conf)) return; // Connection hasn't yet been established.
-            auto& sock = conf.sock;
-
-            sock = socket(AF_INET, SOCK_STREAM, 0);
-
-            if (sock == transport::kInvalidSocket)
-                return logEvent(conf, Socket_Failure);
-            logEvent(conf, Socket_Success);
         }
 
         void initServAddr(ExecConfig& conf) {

@@ -14,9 +14,13 @@ add_executable(worker
         src/utility/runner/runner.cpp
         src/utility/runner/runner.h)
 add_executable(client
-        src/client.cpp
+        src/client_cli.cpp
         src/utility/random/random_utils.cpp
         src/utility/random/random_utils.h)
+
+add_executable(logger
+        src/utility/scope_logger/main.cpp
+        src/utility/scope_logger/scope_logger.cpp)
 
 target_link_libraries(worker PRIVATE ws2_32)
 target_link_libraries(client PRIVATE ws2_32)
