@@ -119,14 +119,13 @@ ClientState step (const state::WaitResult&, const exec_ctx& e_ctx) {
     return state::Success {};
 }
 
-ClientState step (const state::RetryDecision&, const exec_ctx& e_ctx) {
+ClientState step (const state::RetryDecision&, exec_ctx& e_ctx) {
     LOG_SCOPE("Retry Handler");
 
     if (std::chrono::steady_clock::now() >= e_ctx.deadline) {
         logging::Event("We are out of time.");
         return state::Failure {};
     }
-
 
     if (e_ctx.retries_remaining == 0) {
         logging::Event("No retries left.");
@@ -152,4 +151,47 @@ void step (const state::Success&, exec_ctx& e_ctx) {
 
 void step (const state::Failure&, exec_ctx& e_ctx){
     LOG_SCOPE("Failed");
+}
+
+Result RunStateMachine(const Context& ctx)
+{
+    exec_ctx e_ctx {
+        .ctx = ctx,
+        .result {},
+        .retries_remaining = ctx.max_retries,
+        .start =
+            std::chrono::steady_clock::now(),
+        .deadline =
+            std::chrono::steady_clock::now()
+            + ctx.timeout
+    };
+
+    ClientState current = state::InitSocket {};
+
+    while (true)
+    {
+        bool terminal = false;
+
+        std::visit([&]<typename T0>(const T0& current_state) {
+            using StateType = std::decay_t<T0>;
+
+            if constexpr (std::is_same_v<StateType, state::Success>) {
+                step(current_state, e_ctx);
+                e_ctx.result.success = true;
+                terminal = true;
+            }
+            else if constexpr (std::is_same_v<StateType, state::Failure>) {
+                step(current_state, e_ctx);
+                e_ctx.result.success = false;
+                terminal = true;
+            }
+            else {
+                current = step(current_state, e_ctx);
+            }
+        }, current);
+
+        if (terminal) {
+            return e_ctx.result;
+        }
+    }
 }
