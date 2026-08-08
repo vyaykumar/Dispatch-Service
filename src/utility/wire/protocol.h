@@ -12,7 +12,7 @@
 #include <vector>
 
 #include "transport.h"
-#include "../work/workload_types.h"
+#include "../workload/workload_types.h"
 
 namespace protocol {
 

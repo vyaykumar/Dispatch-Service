@@ -4,6 +4,10 @@
 #include "../scenario/scenarios.h"
 
 namespace execution {
+    struct ClientContext {
+        sockaddr_in serv_addr{};
+    };
+
     struct ExecutionResult {
         int successCount;
         int failureCount;
