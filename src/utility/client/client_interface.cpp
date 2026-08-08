@@ -7,10 +7,18 @@ namespace client {
         return RunStateMachine(ctx);
     }
 
-    std::jthread SpawnClient(const Context& ctx) {
-        return std::jthread([ctx]() {
-           Result res = RunClient(ctx);
-            // Success/Failure populated here.
+    cli_ctx SpawnClient(const Context& ctx) {
+        std::promise<Result> promise;
+        auto future = promise.get_future();
+
+        std::jthread worker([ctx, promise = std::move(promise)] mutable {
+            {   // try here, and catch below.
+                promise.set_value(RunClient(ctx));
+            }
         });
+        return {
+            .worker = std::move(worker),
+            .result = std::move(future),
+        };
     }
 }

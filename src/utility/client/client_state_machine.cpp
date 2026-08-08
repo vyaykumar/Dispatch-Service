@@ -41,6 +41,7 @@ ClientState step (const state::ConfigureTimeout&, exec_ctx& e_ctx) {
         const std::string error = "Timeout configured unsuccessfully.";
         logging::Event(error);
         e_ctx.result.error = error;
+        return state::RetryDecision {};
     }
     logging::Event("Timeout configured successfully.");
     return state::Connect {};
@@ -118,6 +119,8 @@ ClientState step (const state::WaitResult&, exec_ctx& e_ctx) {
 
     const std::string resultText(message->result.payload.begin(), message->result.payload.end());
     e_ctx.result.payload = resultText;
+    e_ctx.result.status = message->result.status;
+
     logging::Event("Received result.");
     return state::Success {};
 }
@@ -128,20 +131,21 @@ ClientState step (const state::RetryDecision&, exec_ctx& e_ctx) {
     if (std::chrono::steady_clock::now() >= e_ctx.deadline) {
         const std::string error = "We are out of time.";
         logging::Event(error);
-        e_ctx.result.error = error;
+        e_ctx.result.error += " " + error;
         return state::Failure {};
     }
 
     if (e_ctx.retries_remaining == 0) {
         const std::string error = "No retries left.";
         logging::Event(error);
-        e_ctx.result.error = error;
+        e_ctx.result.error += " " + error;
         return state::Failure {};
     }
 
     --e_ctx.retries_remaining;
     ++e_ctx.result.retry_count;
 
+    // logging::Event("Retrying cause of:" + std::to_string(e_ctx.result));
     logging::Event("Retries left: " + std::to_string(e_ctx.retries_remaining));
 
     return state::CloseSocket {};
@@ -151,6 +155,16 @@ ClientState step (const state::CloseSocket&, exec_ctx& e_ctx) {
     LOG_SCOPE("Closing socket.");
     transport::CloseSocket(e_ctx.sock);
     logging::Event("Socket closed.");
+    return state::BackOff {};
+}
+
+ClientState step (const state::BackOff&, exec_ctx& e_ctx) {
+    const auto delay = rando::Delay(
+        e_ctx.ctx.w_conf.retry_backoff_ms.first,
+        e_ctx.ctx.w_conf.retry_backoff_ms.second );
+    LOG_SCOPE("Backing Off for " + std::to_string(delay.count()) + "ms.");
+    std::this_thread::sleep_for(delay);
+    logging::Event("Back again.");
     return state::InitSocket {};
 }
 

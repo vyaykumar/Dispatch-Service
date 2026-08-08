@@ -9,6 +9,7 @@
 
 #include "client_types.h"
 #include "../scope_logger/scope_logger.h"
+#include "../random/random_utils.h"
 
 struct exec_ctx
 {
@@ -19,7 +20,6 @@ struct exec_ctx
     int retries_remaining {};
     std::chrono::steady_clock::time_point start;
     std::chrono::steady_clock::time_point deadline;
-    RetryCause reason {};
 };
 
 ClientState step (const state::InitSocket&,         exec_ctx&);
@@ -31,6 +31,7 @@ ClientState step (const state::WaitAck&,            exec_ctx&);
 ClientState step (const state::WaitResult&,         exec_ctx&);
 ClientState step (const state::RetryDecision&,      exec_ctx&);
 ClientState step (const state::CloseSocket&,        exec_ctx&);
+ClientState step (const state::BackOff&,            exec_ctx&);
 void        step (const state::Success&,            exec_ctx&);
 void        step (const state::Failure&,            exec_ctx&);
 

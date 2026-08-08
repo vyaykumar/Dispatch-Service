@@ -22,6 +22,8 @@ namespace state {
     struct RetryDecision {};
     struct CloseSocket {};
 
+    struct BackOff {};
+
     struct Success {};
     struct Failure {};
 };
@@ -36,16 +38,10 @@ using ClientState = std::variant<
     state::WaitResult,
     state::RetryDecision,
     state::CloseSocket,
+    state::BackOff,
     state::Success,
     state::Failure
 >;
-
-enum class RetryCause {
-    Timeout,
-    ConnectionFailure,
-    SubmitFailure,
-    ProtocolFailure
-};
 
 struct Context {
     std::string serverAddr;
@@ -58,13 +54,6 @@ struct Context {
     // std::map<std::string, std::string> metadata; // Logging and tracing.
 };
 
-struct LogEntry {
-    std::chrono::steady_clock::duration elapsed;
-    Layer layer;
-    std::string stage;
-    std::string message;
-};
-
 struct Result {
     bool success;
     std::string error;
@@ -73,7 +62,8 @@ struct Result {
     uint64_t exe_time;
     size_t retry_count;
     std::string payload;
-    std::vector<LogEntry> metadata;    // Response details.
+    protocol::TaskStatus status;
+    // std::vector<LogEntry> metadata;    // Response details.
 };
 
 #endif //DISPATCH_SERVICE_SMOKETEST_CLIENT_TYPES_H
