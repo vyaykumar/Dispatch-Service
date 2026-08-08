@@ -8,18 +8,30 @@
 
 namespace client{
     enum ClientEvent {
-        SocketCreated,
-        AddressConfigured,
-        TimeoutSet,
-        Connected,
-        TaskSubmitted,
-        ACKReceived,
-        ResultReceived,
-        ConnectionTimeout,
-        SubmissionFailed,
-        ACKFailed,
-        ResultFailed,
-        MalformedResponse
+        // Socket & Config
+        Socket_Success,
+        Socket_Failure,
+        Address_Configured,
+        Timeout_Success,
+        Timeout_Failure,
+
+        // Connection Phase
+        Connect_Success,
+        Connect_Failure,
+
+        // Execution Phase
+        Task_Submitted,
+        Task_SubmitFailed,
+        Ack_Received,
+        Ack_Failed,
+
+        // Result Phase
+        Result_Received,
+        Result_Failed,
+        Result_Malformed,
+
+        // Global Errors
+        OutOfTime
     };
 
     struct Context {

@@ -13,78 +13,72 @@ namespace client {
             std::chrono::steady_clock::time_point deadline;
         };
 
-        // Result failure_struct (const Context& ctx, const std::string& error) {
-        //     return {.success = false, .error = error,
-        //     .task_id = ctx.task_id, .client_id = ctx.client_id,
-        //     .exe_time = 0, .retry_count = 0, .metadata = {}};
-        // }
-
         /***    Helper Functions    ***/
 
-        void logEvent(Result& res, const ClientEvent event) {
-            res.metadata.push_back(event);
+        void logEvent (const ExecConfig& conf, const ClientEvent event) {
+            conf.res.metadata.push_back(event);
         }
 
-        void checkDeadline(const ExecConfig& exec, const ClientEvent timeoutEvent) {
-            if (std::chrono::steady_clock::now() >= exec.deadline) {
-                exec.res.success = false;
-                exec.res.error = "Timeout";
-                logEvent(exec.res, timeoutEvent);
+        [[nodiscard]] bool timed_out(const ExecConfig& conf) {
+            if (std::chrono::steady_clock::now() >= conf.deadline) {
+                logEvent(conf, OutOfTime);
+                return true;
             }
+            return false;
         }
 
         /***   Network Stuff     ***/
         void initSock(ExecConfig& conf) {
+            // if (timed_out(conf)) return; // Connection hasn't yet been established.
             auto& sock = conf.sock;
 
             sock = socket(AF_INET, SOCK_STREAM, 0);
-            if (sock == transport::kInvalidSocket)
 
-            return {};
+            if (sock == transport::kInvalidSocket)
+                return logEvent(conf, Socket_Failure);
+            logEvent(conf, Socket_Success);
         }
 
-        [[nodiscard]] std::expected<void, std::string>
-        initServAddr(ExecConfig& conf) {
+        void initServAddr(ExecConfig& conf) {
+            // if (timed_out(conf)) return;
+            auto& addr = conf.addr;
+            auto& ctx = conf.ctx;
+
             addr.sin_family = AF_INET;
             addr.sin_port = htons(ctx.port);
             inet_pton(AF_INET, ctx.serverAddr.c_str(), &addr.sin_addr);
-            return {};
+
+            logEvent(conf, Address_Configured);
         }
 
-        [[nodiscard]] std::expected<void, std::string>
-        initTimeOut(const transport::socket_t sock, const Context& ctx) {
+        void initTimeOut(const ExecConfig& conf) {
+            auto& sock = conf.sock;
+            auto& ctx = conf.ctx;
+
             const auto timeout_ms = ctx.timeout.count();
+
             if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO,
                 reinterpret_cast<const char*>(&timeout_ms), sizeof(timeout_ms)) != 0)
-                return std::unexpected("Timeout configuration failed");
-            return {};
+                return logEvent(conf, Timeout_Failure);
+
+            return logEvent(conf, Timeout_Success);
         }
 
-        [[nodiscard]] std::expected<void, std::string>
-        startConn(const transport::socket_t sock, sockaddr_in& addr) {
+        void startConn(ExecConfig& conf) {
+            auto& sock = conf.sock;
+            auto& addr = conf.addr;
+
             if (connect(sock, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) != 0)
-                return std::unexpected("Connection failed");
-            return {};
+                return logEvent(conf, Connect_Failure);
+            return logEvent(conf, Connect_Success);
         }
 
-        /***    Cumulating the network stuff    ***/
-        std::expected<transport::socket_t, std::string> preflight(const Context& ctx) {
-            transport::socket_t sock;
-            sockaddr_in addr;
-
-            if (auto result = initSock(sock, ctx); !result)
-                return std::unexpected(result.error());
-
-            if (auto result = initServAddr(addr, ctx); !result)
-                return std::unexpected(result.error());
-
-            if (auto result = initTimeOut(sock, ctx); !result)
-                return std::unexpected(result.error());
-
-            if (auto result = startConn(sock, addr); !result)
-                return std::unexpected(result.error());
-
-            return sock;
+        /***    Accumulating the network stuff    ***/
+        void preflight(ExecConfig& conf) {
+            initSock(conf);
+            initServAddr(conf);
+            initTimeOut(conf);
+            startConn(conf);
         }
 
         /***    Operation on sockets    ***/
