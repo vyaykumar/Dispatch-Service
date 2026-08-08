@@ -145,12 +145,16 @@ ClientState step (const state::CloseSocket&, const exec_ctx& e_ctx) {
     return state::InitSocket {};
 }
 
-void step (const state::Success&, exec_ctx& e_ctx) {
+void step (const state::Success&, const exec_ctx& e_ctx) {
     LOG_SCOPE("Succeeded");
+    transport::CloseSocket(e_ctx.sock);
+    logging::Event("Socket closed.");
 }
 
-void step (const state::Failure&, exec_ctx& e_ctx){
+void step (const state::Failure&, const exec_ctx& e_ctx){
     LOG_SCOPE("Failed");
+    transport::CloseSocket(e_ctx.sock);
+    logging::Event("Socket closed.");
 }
 
 Result RunStateMachine(const Context& ctx)

@@ -22,17 +22,17 @@ struct exec_ctx
     RetryCause reason {};
 };
 
-ClientState step (const state::InitSocket&,       exec_ctx&);
-ClientState step (const state::ConfigureAddress&, exec_ctx&);
-ClientState step (const state::ConfigureTimeout&, const exec_ctx&);
-ClientState step (const state::Connect&,          exec_ctx&);
-ClientState step (const state::SubmitTask&, const exec_ctx&);
-ClientState step (const state::WaitAck&, const exec_ctx&);
-ClientState step (const state::WaitResult&, const exec_ctx&);
-ClientState step (const state::RetryDecision&, const exec_ctx&);
-ClientState step (const state::CloseSocket&,    exec_ctx&);
-void step (const state::Success&,          exec_ctx&);
-void step (const state::Failure&,          exec_ctx&);
+ClientState step (const state::InitSocket&,                 exec_ctx&);
+ClientState step (const state::ConfigureAddress&,           exec_ctx&);
+ClientState step (const state::ConfigureTimeout&,   const   exec_ctx&);
+ClientState step (const state::Connect&,                    exec_ctx&);
+ClientState step (const state::SubmitTask&,         const   exec_ctx&);
+ClientState step (const state::WaitAck&,            const   exec_ctx&);
+ClientState step (const state::WaitResult&,         const   exec_ctx&);
+ClientState step (const state::RetryDecision&,              exec_ctx&);
+ClientState step (const state::CloseSocket&,        const   exec_ctx&);
+void        step (const state::Success&,            const   exec_ctx&);
+void        step (const state::Failure&,            const   exec_ctx&);
 
 Result RunStateMachine(const Context&);
 
