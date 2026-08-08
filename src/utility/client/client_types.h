@@ -72,6 +72,7 @@ struct Result {
     std::string client_id;
     uint64_t exe_time;
     size_t retry_count;
+    std::string payload;
     std::vector<LogEntry> metadata;    // Response details.
 };
 
