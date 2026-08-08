@@ -34,4 +34,6 @@ ClientState step (const state::CloseSocket&,    exec_ctx&);
 void step (const state::Success&,          exec_ctx&);
 void step (const state::Failure&,          exec_ctx&);
 
+Result RunStateMachine(const Context&);
+
 #endif //DISPATCH_SERVICE_SMOKETEST_STATE_MACHINE_H
