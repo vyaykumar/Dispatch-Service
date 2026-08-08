@@ -29,88 +29,27 @@ namespace client {
         }
 
         /***   Network Stuff     ***/
-        void initSock(ExecConfig& conf) {
-            // if (timed_out(conf)) return; // Connection hasn't yet been established.
-        }
 
-        void initServAddr(ExecConfig& conf) {
-            // if (timed_out(conf)) return;
-            auto& addr = conf.addr;
-            auto& ctx = conf.ctx;
-
-            addr.sin_family = AF_INET;
-            addr.sin_port = htons(ctx.port);
-            inet_pton(AF_INET, ctx.serverAddr.c_str(), &addr.sin_addr);
-
-            logEvent(conf, Address_Configured);
-        }
-
-        void initTimeOut(const ExecConfig& conf) {
-            auto& sock = conf.sock;
-            auto& ctx = conf.ctx;
-
-            const auto timeout_ms = ctx.timeout.count();
-
-            if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO,
-                reinterpret_cast<const char*>(&timeout_ms), sizeof(timeout_ms)) != 0)
-                return logEvent(conf, Timeout_Failure);
-
-            return logEvent(conf, Timeout_Success);
-        }
-
-        void startConn(ExecConfig& conf) {
-            auto& sock = conf.sock;
-            auto& addr = conf.addr;
-
-            if (connect(sock, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) != 0)
-                return logEvent(conf, Connect_Failure);
-            return logEvent(conf, Connect_Success);
-        }
-
-        /***    Accumulating the network stuff    ***/
-        void preflight(ExecConfig& conf) {
-            initSock(conf);
-            initServAddr(conf);
-            initTimeOut(conf);
-            startConn(conf);
-        }
 
         /***    Operation on sockets    ***/
 
-        [[nodiscard]] std::expected<void, std::string> submitTask (const transport::socket_t sock, const Context& ctx) {
-            const protocol::TaskSubmit submit{
-                .taskId = ctx.task_id,
-                .idempotencyKey = ctx.task_id+ctx.client_id,
-                .payload = ctx.w_conf.payload,
-            };
+        [[nodiscard]] std::expected<void, std::string> submitTask (const transport::socket_t sock, const Context& e_ctx) {
 
-            if (!protocol::SendTaskSubmit(sock, submit))
-                return std::unexpected("Task couldn't be submitted.");
-
-            return {};
         }
 
         [[nodiscard]] std::expected<void, std::string> recAck (const transport::socket_t sock) {
-            if (const auto ackMsg = protocol::ReceiveMessage(sock); !ackMsg or ackMsg->type != protocol::MessageType::kTaskAck) {
-                if (WSAGetLastError() == WSAETIMEDOUT)
-                    return std::unexpected("Timeout waiting for ACK.");
-                return std::unexpected("ACK validation failed.");
-            }
-            return {};
+
         }
 
         [[nodiscard]] std::expected<Result, std::string> recMes (const transport::socket_t sock, const Context& ctx) {
             const auto start = std::chrono::steady_clock::now();
-            const auto message = protocol::ReceiveMessage(sock);
+
             auto elapsed = std::chrono::steady_clock::now() - start;
 
             if (elapsed >= ctx.timeout)
                 return std::unexpected("Timeout.");
 
-            if (message->type != protocol::MessageType::kTaskResult)
-                return std::unexpected("Malformed result.");
 
-            const std::string resultText(message->result.payload.begin(), message->result.payload.end());
 
         }
     }

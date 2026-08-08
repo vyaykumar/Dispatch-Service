@@ -20,6 +20,7 @@ namespace state {
     struct WaitResult {};
 
     struct RetryDecision {};
+    struct CloseSocket {};
 
     struct Success {};
     struct Failure {};
@@ -34,9 +35,17 @@ using ClientState = std::variant<
     state::WaitAck,
     state::WaitResult,
     state::RetryDecision,
+    state::CloseSocket,
     state::Success,
     state::Failure
 >;
+
+enum class RetryCause {
+    Timeout,
+    ConnectionFailure,
+    SubmitFailure,
+    ProtocolFailure
+};
 
 struct Context {
     std::string serverAddr;
