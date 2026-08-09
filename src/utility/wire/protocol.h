@@ -31,6 +31,7 @@ namespace protocol {
         kRunning = 1,
         kSucceeded = 2,
         kFailed = 3,
+        kInProgress = 4,
     };
 
     enum class FieldId : uint8_t {

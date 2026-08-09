@@ -11,6 +11,7 @@
 #include "utility/Task_Registry.h"
 #include "utility/defer.h"
 #include "utility/workload/workload.h"
+#include "utility/scope_logger/scope_logger.h"
 
 using transport::socket_t;
 
@@ -27,31 +28,30 @@ namespace {
     };
 
     std::expected<protocol::DecodedMessage, ErrorStates> ReceiveMessage (const socket_t client) {
+        LOG_SCOPE("Receiving Message");
         auto message = protocol::ReceiveMessage(client);
 
-        // Malformed Message
         if (message == std::nullopt) {
-            std::cout << "[worker]: Malformed message. Rejected.\n";
+            logging::Event ("Malformed message. Rejected.");
             return std::unexpected(ErrorStates::MalformedMessage);
         }
 
-        // Out-Of-Sequence
         if (message->type != protocol::MessageType::kTaskSubmit) {
-            std::cout << "[worker]: Incorrect type of message received. Rejected.\n";
+            logging::Event ("Anomalous message received. Rejected.");
             return std::unexpected(ErrorStates::AnomalousMessage);
         }
 
         return message.value();
     }
 
-    // 2. void* recSub                - Protocol Handshake: Send the ACK.
     std::expected <void, ErrorStates> SendACK (const socket_t client, const protocol::TaskId& taskID) {
-        // Quick return, in case of failure.
+        LOG_SCOPE("Sending ACK");
+
         if (!protocol::SendTaskAck(client, {taskID})) {
-            std::cout << "[worker]: ACK Failure. Rejected.\n";
+            logging::Event ("ACK Failure.");
             return std::unexpected(ErrorStates::ACKFailure);
         }
-        std::cout << "[worker]: ACK sent successfully.\n";
+        logging::Event("ACK sent.");
         return {};
     }
 
@@ -69,16 +69,16 @@ namespace {
     }
 
     protocol::TaskResult Execute(const protocol::TaskId &taskID, const work_l::Workload& workload) {
+        LOG_SCOPE("Executing");
+
         work_l::Config conf {};
+
         switch (workload) {
             case work_l::Workload::SlowSuccess:
                 conf.duration = std::chrono::milliseconds(2000);
                 conf.type = workload;
                 break;
             case work_l::Workload::FastSuccess:
-                conf.duration = std::chrono::milliseconds(0);
-                conf.type = workload;
-                break;
             case work_l::Workload::ImmediateFailure:
                 conf.duration = std::chrono::milliseconds(0);
                 conf.type = workload;
@@ -99,57 +99,60 @@ namespace {
         return res;
     }
 
+    protocol::TaskResult Rejected (const protocol::TaskId& task_id) {
+        std::string payload = "Task exists.";
+        return {
+            .taskId = task_id,
+            .status = protocol::TaskStatus::kInProgress,
+            .payload = { payload.begin(), payload.end() }
+        };
+    }
+
     std::expected<protocol::TaskResult, ErrorStates> Process (const protocol::TaskId& taskID, work_l::Workload workload) {
+        LOG_SCOPE("Processing");
+
         using Action = task_registry::Action;
 
-        // Check for task in Task_Registry.
-        std::cout << "Checking for Task(" << taskID << ").\n";
-
-        // `action` tells us what to do.
+        logging::Event("Checking for Task(" + taskID + ").");
         switch (auto [action, result] = g_registry.try_claim(taskID); action) {
-            case Action::Reject  : std::cout << "REJECT\n"; return std::unexpected (ErrorStates::JobExists);
-            case Action::Execute : std::cout << "EXECUTE\n"; return std::move (Execute(taskID, workload));
-            case Action::Cached  : std::cout << "CACHED\n"; return std::move (result.value());
+            // case Action::Reject  : logging::Event("Registry decision: Reject.");  return std::unexpected (ErrorStates::JobExists);
+            case Action::Reject  : logging::Event("Registry decision: Reject.");  return std::move (Rejected(taskID));
+            case Action::Execute : logging::Event("Registry decision: Execute."); return std::move (Execute(taskID, workload));
+            case Action::Cached  : logging::Event("Registry decision: Cached.");  return std::move (result.value());
         }
         return {};
     }
 
-    // 5. void* SendResult            - Response: Build and send the TASK_RESULT, close the socket, flip done.
-
     std::expected<void, ErrorStates> SendResult (const socket_t client, const protocol::TaskResult& result) {
-        if (protocol::SendTaskResult(client, result))
-            std::cout << "[worker]: Result successfully sent.\n";
-        else
-            std::cout << "[worker]: Result for taskID(" << result.taskId << ") couldn't be sent.\n";
+        LOG_SCOPE("Sending Result");
 
-        std::cout << "[worker]: Terminating.\n";
+        if (protocol::SendTaskResult(client, result))
+            logging::Event("Result successfully sent.");
+        else
+            logging::Event("Result for taskID(" + result.taskId + ") couldn't be sent.");
+
         return {};
     }
 
 
     void HandleConnection(const std::stop_token& stopToken, const socket_t client, std::atomic_bool& done) {
-        // Preprocessor RAII magic.
+        LOG_SCOPE("Connection Handler");
+
         defer(transport::CloseSocket(client));
         defer(done.store(true));
-
-        // Function starts here.
-        std::cout << "[worker]: Thread started.\n";
 
         const auto message = ReceiveMessage(client).and_then(std::bind_front(SubmitACK, client));
         if (!message)
             return;
 
-        if (const auto result = Process(message.value().submit.taskId, message->submit.workload).and_then(std::bind_front(SendResult, client)); !result)
-            return;
-
-        std::cout << "Thread finished.\n\n";
+        auto result = Process(message.value().submit.taskId, message->submit.workload).and_then(std::bind_front(SendResult, client));
     }
 
     void RunWorker() {
-        socket_t sock = socket (AF_INET, SOCK_STREAM, 0);
+        const socket_t sock = socket (AF_INET, SOCK_STREAM, 0);
 
         if (sock == transport::kInvalidSocket) {
-            std::cout << "Dead Socket. Terminating.\n";
+            logging::Event("Dead Socket. Terminating.");
             return;
         }
 
@@ -163,13 +166,13 @@ namespace {
         auto flag = bind(sock, reinterpret_cast<sockaddr*>(&cAddr), sizeof(cAddr));
 
         if (flag) {
-            std::cout << "Event Logger: Binding failed.\n";
+            logging::Event("Binding failed.");
             return;
         }
 
         flag = listen(sock, SOMAXCONN);
         if (flag) {
-            std::cout << "Event Logger: Listening failed.\n";
+            logging::Event("Listening failed.");
             return;
         }
 
@@ -180,13 +183,11 @@ namespace {
         std::vector<std::unique_ptr<Connection>> cvec {};
 
         while (true) {
-            // Sweep
-            std::erase_if(cvec, [](const std::unique_ptr<Connection>& conn) { if (conn->done.load()) std::cout << "Reaped a thread.\n"; return conn && conn->done.load(); });
+            std::erase_if(cvec, [](const std::unique_ptr<Connection>& conn) { if (conn->done.load()) logging::Event("Reaped a thread."); return conn && conn->done.load(); });
 
-            // Accept
             socket_t client = accept(sock, nullptr, nullptr);
 
-            std::cout << "Connection accepted.\n";
+            logging::Event("Connection accepted.");
             if (client == transport::kInvalidSocket)
                 continue;
 
@@ -195,12 +196,11 @@ namespace {
             cvec.push_back(std::move(conn));
         }
     }
+}
 
-}  // namespace
 int main() {
     transport::PlatformInit();
-    std::cout << "Worker is a go.";
-    // TODO: call RunWorker() (or inline its contents here if you'd rather not split it out — your call).
+
     RunWorker();
 
     transport::PlatformCleanup();

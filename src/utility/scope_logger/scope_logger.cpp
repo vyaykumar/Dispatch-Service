@@ -45,7 +45,7 @@ namespace logging {
 
         // Draw vertical bars for all active parent layers above this one
         for (size_t i = 0; i < depth; ++i) {
-            result += "│ ";
+            result += "│   ";
         }
 
         return result;

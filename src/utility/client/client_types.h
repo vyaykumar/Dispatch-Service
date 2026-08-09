@@ -49,6 +49,7 @@ struct Context {
     protocol::TaskId task_id;
     work_l::Config w_conf;
     std::chrono::milliseconds timeout;
+    std::chrono::milliseconds global_timeout;
     int max_retries {0};
     std::string client_id;
     // std::map<std::string, std::string> metadata; // Logging and tracing.

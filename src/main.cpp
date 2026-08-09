@@ -2,16 +2,12 @@
 #include "utility/execution/execution_engine.h"
 
 int main() {
-    auto conf =
-        scenario::getHappyConf();
+    // auto conf = scenario::getHappyConf();
+    auto conf = scenario::getTimeoutConf();
 
-    auto res =
-        execution::ExecuteScenario(conf);
+    auto res = execution::ExecuteScenario(conf);
 
-    std::cout
-        << "Execution count: "
-        << res.results.size()
-        << '\n';
+    std::cout << "Execution count: " << res.results.size() << '\n';
 
     for (const auto& r : res.results)
     {

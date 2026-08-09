@@ -9,7 +9,7 @@ add_executable(worker
 
         src/utility/workload/workload.cpp
         src/utility/random/random_utils.cpp
-
+        src/utility/scope_logger/scope_logger.cpp
         src/utility/runner/runner.cpp
 )
 

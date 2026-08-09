@@ -13,7 +13,7 @@
 namespace work_l {
     namespace {
         protocol::TaskResult CreateMessage (const protocol::TaskId& taskID, const protocol::TaskStatus status) {
-            std::string resPayload {"[worker]: Task(" + taskID + ") executed."};
+            std::string resPayload {taskID + " executed."};
 
             protocol::TaskResult result {
                 .taskId = taskID,

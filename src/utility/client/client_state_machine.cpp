@@ -117,12 +117,18 @@ ClientState step (const state::WaitResult&, exec_ctx& e_ctx) {
         return state::RetryDecision {};
     }
 
+    logging::Event("Received result.");
+
     const std::string resultText(message->result.payload.begin(), message->result.payload.end());
     e_ctx.result.payload = resultText;
     e_ctx.result.status = message->result.status;
 
-    logging::Event("Received result.");
-    return state::Success {};
+    if (message->result.status == protocol::TaskStatus::kSucceeded)
+        return state::Success {};
+
+    e_ctx.result.error = resultText;
+    logging::Event("Task failed: " + e_ctx.result.error);
+    return state::Failure {};
 }
 
 ClientState step (const state::RetryDecision&, exec_ctx& e_ctx) {
@@ -187,6 +193,7 @@ void step (const state::Failure&, exec_ctx& e_ctx){
 
 Result RunStateMachine(const Context& ctx)
 {
+    LOG_SCOPE(ctx.client_id);
     exec_ctx e_ctx {
         .ctx = ctx,
         .result {
@@ -198,7 +205,7 @@ Result RunStateMachine(const Context& ctx)
             std::chrono::steady_clock::now(),
         .deadline =
             std::chrono::steady_clock::now()
-            + ctx.timeout
+            + ctx.global_timeout
     };
 
     ClientState current = state::InitSocket {};

@@ -9,7 +9,7 @@ namespace scenario {
     }
 
     Config getHappyConf () {
-        Config conf{
+        return {
             .scene = Scenario::HappyPath,
             .client_template = {
                 // .client_id = ,
@@ -30,11 +30,31 @@ namespace scenario {
             .stagger = std::chrono::milliseconds(0),
             .strategy = TaskStrategy::Unique,
         };
-        return conf;
     }
 
     Config getTimeoutConf () {
-        return {};
+        return {
+            .scene = Scenario::HappyPath,
+            .client_template = {
+                // .client_id = ,
+                // .task_id = ,
+                .serverAddr = "127.0.0.1",
+                .port = 50051,
+                .w_conf = {
+                    .type = work_l::Workload::SlowSuccess,
+                    .duration = std::chrono::milliseconds(2500),
+                    // .payload = ,
+                    .retry_backoff_ms = std::make_pair(50,100)
+                },
+                .timeout = std::chrono::milliseconds(1000),
+                .global_timeout = std::chrono::milliseconds(5000),
+                .max_retries = 2,
+
+            },
+            .clients = 1,
+            .stagger = std::chrono::milliseconds(0),
+            .strategy = TaskStrategy::Unique,
+        };
     }
 
     Config getCachedConf () {
