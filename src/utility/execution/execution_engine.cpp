@@ -5,18 +5,29 @@
 #include "execution_engine.h"
 
 namespace execution {
-    ExecutionResult ExecuteScenario (const scenario::Config& config) {
-
-        ExecutionResult res_vec;
-
-        // Parse the config.
-        auto [scene,work_conf,clients,stagger] = config;
-        // Spawn N clients, with stagger time between them.
-        while (clients--) {
-            Result res = client::RunClient(ctx);
-            res_vec.results.push_back(std::move(res));
-            std::this_thread::sleep_for(stagger);
+    Context BuildContext (const scenario::Config& conf, size_t idx) {
+        Context ctx = conf.client_template;
+        ctx.client_id = "client"+std::to_string(idx);
+        switch (conf.strategy) {
+            case scenario::TaskStrategy::Unique:
+                ctx.task_id = "task-" + std::to_string(idx);
+                break;
+            case scenario::TaskStrategy::Shared:
+                ctx.task_id = "shared-task";
+                break;
         }
-        // Return aggregated results.
+        return ctx;
+    }
+
+    ExecutionResult ExecuteScenario (const scenario::Config& conf) {
+        ExecutionResult res_vec {};
+
+        for (size_t idx {0}; idx < conf.clients; idx++) {
+            auto ctx = BuildContext(conf, idx);
+            res_vec.results.push_back(client::RunClient(ctx));
+            std::this_thread::sleep_for(conf.stagger);
+        }
+
+        return res_vec;
     }
 }

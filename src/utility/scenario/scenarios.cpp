@@ -9,50 +9,39 @@ namespace scenario {
     }
 
     Config getHappyConf () {
-        return {
+        Config conf{
             .scene = Scenario::HappyPath,
-            .workload {
-                .type = work_l::Workload::FastSuccess,
-                .duration = std::chrono::milliseconds(0),
+            .client_template = {
+                // .client_id = ,
+                // .task_id = ,
+                .serverAddr = "127.0.0.1",
+                .port = 50051,
+                .w_conf = {
+                    .type = work_l::Workload::FastSuccess,
+                    .duration = std::chrono::milliseconds(500),
+                    // .payload = ,
+                    // .retry_backoff_ms = ,
+                },
+                .timeout = std::chrono::milliseconds(3000),
+                .max_retries = 2,
+
             },
             .clients = 1,
             .stagger = std::chrono::milliseconds(0),
+            .strategy = TaskStrategy::Unique,
         };
+        return conf;
     }
 
     Config getTimeoutConf () {
-        return {
-            .scene = Scenario::TimeoutRetry,
-            .workload {
-                .type = work_l::Workload::SlowSuccess,
-                .duration = std::chrono::milliseconds(2500),
-            },
-            .clients = 1,
-            .stagger = std::chrono::milliseconds(0),
-        };
+        return {};
     }
 
     Config getCachedConf () {
-        return {
-            .scene = Scenario::CachedResult,
-            .workload {
-                .type = work_l::Workload::SlowSuccess,
-                .duration = std::chrono::milliseconds(2000),
-            },
-            .clients = 2,
-            .stagger = std::chrono::milliseconds(2500),
-        };
+        return {};
     }
 
     Config getConcurrentConf () {
-        return {
-            .scene = Scenario::ConcurrentClients,
-            .workload {
-                .type = work_l::Workload::SlowSuccess,
-                .duration = std::chrono::milliseconds(1500),
-            },
-            .clients = 4,
-            .stagger = std::chrono::milliseconds(0),
-        };
+        return {};
     }
 }

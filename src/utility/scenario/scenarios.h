@@ -2,6 +2,7 @@
 #include <chrono>
 #include <cstddef>
 
+#include "../client/client_types.h"
 #include "../workload/workload.h"
 
 namespace scenario {
@@ -12,11 +13,17 @@ namespace scenario {
         ConcurrentClients
     };
 
+    enum class TaskStrategy {
+        Unique,
+        Shared
+    };
+
     struct Config {
         Scenario scene;
-        work_l::Config workload;
+        Context client_template;
         size_t clients {1};
         std::chrono::milliseconds stagger {};
+        TaskStrategy strategy;
     };
 
     // These confs are passed TO RunScenario in runner.

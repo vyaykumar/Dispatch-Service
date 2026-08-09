@@ -3,6 +3,6 @@
 #include <chrono>
 
 namespace rando {
-    std::chrono::milliseconds Delay(int min, int max);
+    std::chrono::milliseconds Delay(size_t min, size_t max);
     bool Success (double probability);
 }

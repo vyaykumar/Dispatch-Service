@@ -15,12 +15,6 @@
 using transport::socket_t;
 
 namespace {
-    // Debug stuff.
-    constexpr work_l::Config g_config {
-        .type = work_l::Workload::SlowSuccess,
-        .duration = std::chrono::seconds(2)
-    };
-
     // Usual Stuff.
     constexpr uint16_t kPort = 50051;
     task_registry::TaskRegistry g_registry;
@@ -205,7 +199,7 @@ namespace {
 }  // namespace
 int main() {
     transport::PlatformInit();
-
+    std::cout << "Worker is a go.";
     // TODO: call RunWorker() (or inline its contents here if you'd rather not split it out — your call).
     RunWorker();
 
