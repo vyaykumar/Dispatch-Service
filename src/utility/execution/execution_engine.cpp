@@ -21,12 +21,17 @@ namespace execution {
 
     ExecutionResult ExecuteScenario (const scenario::Config& conf) {
         ExecutionResult res_vec {};
+        std::vector<client::cli_ctx> clients {};
 
         for (size_t idx {0}; idx < conf.clients; idx++) {
             auto ctx = BuildContext(conf, idx);
-            res_vec.results.push_back(client::RunClient(ctx));
+            std::cout << "\n";
+            clients.push_back(client::SpawnClient(ctx));
             std::this_thread::sleep_for(conf.stagger);
         }
+
+        for (auto&[worker, result] : clients)
+            res_vec.results.push_back(result.get());
 
         return res_vec;
     }

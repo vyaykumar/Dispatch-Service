@@ -183,7 +183,7 @@ namespace {
         std::vector<std::unique_ptr<Connection>> cvec {};
 
         while (true) {
-            std::erase_if(cvec, [](const std::unique_ptr<Connection>& conn) { if (conn->done.load()) logging::Event("Reaped a thread."); return conn && conn->done.load(); });
+            std::erase_if(cvec, [](const std::unique_ptr<Connection>& conn) { if (conn->done.load()) std::cout << "├── Reaped a thread.\n"; return conn && conn->done.load(); });
 
             socket_t client = accept(sock, nullptr, nullptr);
 
