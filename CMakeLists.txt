@@ -5,9 +5,11 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_executable(worker
-        src/worker.cpp
+        src/worker_cli.cpp
 
         src/utility/workload/workload.cpp
+        src/utility/worker_pool/worker_pool.cpp
+        src/utility/worker_pool/worker_interface/worker_interface.cpp
         src/utility/random/random_utils.cpp
         src/utility/scope_logger/scope_logger.cpp
         src/utility/runner/runner.cpp

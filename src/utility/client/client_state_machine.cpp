@@ -126,6 +126,7 @@ ClientState step (const state::WaitResult&, exec_ctx& e_ctx) {
     if (message->result.status == protocol::TaskStatus::kSucceeded)
         return state::Success {};
 
+    // TODO: kInProgress should not become Failure.
     e_ctx.result.error = resultText;
     logging::Event("Task failed: " + e_ctx.result.error);
     return state::Failure {};

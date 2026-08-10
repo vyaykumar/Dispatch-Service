@@ -129,7 +129,7 @@ namespace worker {
         }
     }
 
-    void HandleConnection(const std::stop_token& stopToken, const socket_t client) {
+    void HandleConnection(const std::stop_token stopToken, const socket_t client) {
         LOG_SCOPE("Connection Handler");
 
         defer(transport::CloseSocket(client));
