@@ -15,18 +15,14 @@ namespace worker_pool {
     }
 
     void WorkerPool::WorkerLoop(const std::stop_token &stop_token) {
-        while (true) {
-            // Acquire mutex.
+        while (!stop_token.stop_requested()) {
             std::unique_lock lock(mutex_);
 
-            // Wait while queue is empty.
             condition_variable_.wait(lock ,[this] { return !queue_.empty(); });
 
-            // Pop queue.
             auto [socket] = queue_.front();
             queue_.pop();
 
-            // Release mutex.
             lock.unlock();
 
             worker::HandleConnection(stop_token, socket);
@@ -49,15 +45,9 @@ namespace worker_pool {
     }
 
     void WorkerPool::Enqueue(Item item) {
-        // Acquire mutex.
         std::unique_lock lock(mutex_);
-
-        // Push into queue.
         queue_.push(std::move(item));
-
-        // Release mutex.
         lock.unlock();
-
         condition_variable_.notify_one();
     }
 }

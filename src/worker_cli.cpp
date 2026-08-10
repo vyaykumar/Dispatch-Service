@@ -10,6 +10,7 @@
 #include "utility/Task_Registry.h"
 
 #include "utility/scope_logger/scope_logger.h"
+#include "utility/worker_pool/worker_pool.h"
 #include "utility/worker_pool/worker_interface/worker_interface.h"
 
 using transport::socket_t;
@@ -30,7 +31,7 @@ namespace {
         cAddr.sin_port = htons(kPort);
         cAddr.sin_addr.s_addr = INADDR_ANY;
 
-        int opt {1};
+        const int opt {1};
         setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char *>(&opt), sizeof(opt));
         auto flag = bind(sock, reinterpret_cast<sockaddr*>(&cAddr), sizeof(cAddr));
 
@@ -45,6 +46,8 @@ namespace {
             return;
         }
 
+        worker_pool::WorkerPool pool {4};
+
         while (true) {
             socket_t client = accept(sock, nullptr, nullptr);
 
@@ -53,7 +56,8 @@ namespace {
             if (client == transport::kInvalidSocket)
                 continue;
 
-            std::jthread(worker::HandleConnection, client).detach();
+            // std::jthread(worker::HandleConnection, client).detach();
+            pool.Enqueue( {.socket = client} );
         }
     }
 }
