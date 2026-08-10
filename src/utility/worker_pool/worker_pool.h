@@ -34,6 +34,8 @@ namespace worker_pool {
         void Enqueue (Item item);
 
     private:
+        void WorkerLoop(const std::stop_token &stop_token);
+
         std::vector<Worker> workers_;
         std::queue<Item> queue_;
         std::mutex mutex_;
