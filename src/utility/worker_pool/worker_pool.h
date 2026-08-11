@@ -56,7 +56,7 @@ namespace worker_pool {
         void Enqueue (Item item);
 
     private:
-        void WorkerLoop(const std::stop_token &stop_token, Profile profile);
+        void WorkerLoop(Profile profile);
 
         bool shutting_down_ = false;
         std::vector<Worker> workers_;

@@ -49,6 +49,7 @@ namespace {
         std::vector <size_t> profiles = {0,1,2,2};
         worker_pool::WorkerPool pool {profiles};
 
+        // Uncomment this for the (now rectified) shutdown bug.
         // {
         //     std::vector <size_t> temp_prof = {1,1,1,1};
         //     worker_pool::WorkerPool temp_pool{temp_prof};

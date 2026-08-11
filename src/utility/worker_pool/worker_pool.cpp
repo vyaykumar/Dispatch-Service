@@ -34,7 +34,7 @@ namespace worker_pool {
         }
     }
 
-    void WorkerPool::WorkerLoop(const std::stop_token &stop_token, Profile profile) {
+    void WorkerPool::WorkerLoop(const Profile profile) {
         while (!shutting_down_) {
             std::unique_lock lock(mutex_);
 

@@ -2,13 +2,12 @@
 
 #ifndef DISPATCH_SERVICE_SMOKETEST_WORKER_INTERFACE_H
 #define DISPATCH_SERVICE_SMOKETEST_WORKER_INTERFACE_H
-#include <stop_token>
 
 #include "../worker_pool.h"
 #include "../../Wire/transport.h"
 
 namespace worker {
-    void HandleConnection (transport::socket_t, worker_pool::Profile);
+    void HandleConnection (transport::socket_t, const worker_pool::Profile&);
 }
 
 #endif //DISPATCH_SERVICE_SMOKETEST_WORKER_INTERFACE_H

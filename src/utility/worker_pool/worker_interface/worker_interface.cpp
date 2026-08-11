@@ -90,10 +90,7 @@ namespace worker {
 
             work_l::Config conf {};
 
-            auto temp1 = std::string("Worker speed class: ");
-            temp1.append(worker_pool::getSpeed(profile.speed));
-            logging::Event(temp1);
-
+            logging::Event("Worker speed class: " + std::string(worker_pool::getSpeed(profile.speed)));
             logging::Event("Worker speed factor: "+ std::to_string(profile.duration_factor));
 
             switch (workload) {
@@ -133,15 +130,15 @@ namespace worker {
             logging::Event("Checking for Task(" + taskID + ").");
             switch (auto [action, result] = g_registry.try_claim(taskID); action) {
                 // case Action::Reject  : logging::Event("Registry decision: Reject.");  return std::unexpected (ErrorStates::JobExists);
-                case Action::Reject  : logging::Event("Registry decision: Reject.");  return std::move (Rejected(taskID));
-                case Action::Execute : logging::Event("Registry decision: Execute."); return std::move (Execute(taskID, workload, profile));
-                case Action::Cached  : logging::Event("Registry decision: Cached.");  return std::move (result.value());
+                case Action::Reject  : logging::Event("Registry decision: Reject.");  return Rejected(taskID);
+                case Action::Execute : logging::Event("Registry decision: Execute."); return Execute(taskID, workload, profile);
+                case Action::Cached  : logging::Event("Registry decision: Cached.");  return result.value();
             }
             return {};
         }
     }
 
-    void HandleConnection(const socket_t client, worker_pool::Profile profile) {
+    void HandleConnection(const socket_t client, const worker_pool::Profile& profile) {
         LOG_SCOPE("Connection Handler");
 
         defer(transport::CloseSocket(client));
@@ -150,6 +147,10 @@ namespace worker {
         if (!message)
             return;
 
-        auto result = Process(message.value().submit.taskId, message->submit.workload, profile).and_then(std::bind_front(SendResult, client));
+        if (const auto result =
+            Process(message.value().submit.taskId, message->submit.workload, profile)
+            .and_then(std::bind_front(SendResult, client));
+            !result)
+            logging::Event("Failed to send result.");
     }
 }
