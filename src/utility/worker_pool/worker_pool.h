@@ -20,7 +20,7 @@ namespace worker_pool {
 
     struct Profile {
         SpeedClass speed;
-        double speed_factor;
+        double duration_factor;
     };
 
     struct Worker {
@@ -30,11 +30,11 @@ namespace worker_pool {
 
     class WorkerPool {
     public:
-        explicit WorkerPool (size_t worker_count);
+        explicit WorkerPool (size_t worker_count, Profile profile);
         void Enqueue (Item item);
 
     private:
-        void WorkerLoop(const std::stop_token &stop_token);
+        void WorkerLoop(const std::stop_token &stop_token, Profile profile);
 
         std::vector<Worker> workers_;
         std::queue<Item> queue_;

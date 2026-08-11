@@ -14,7 +14,7 @@ namespace worker_pool {
 
     }
 
-    void WorkerPool::WorkerLoop(const std::stop_token &stop_token) {
+    void WorkerPool::WorkerLoop(const std::stop_token &stop_token, Profile profile) {
         while (!stop_token.stop_requested()) {
             std::unique_lock lock(mutex_);
 
@@ -25,28 +25,25 @@ namespace worker_pool {
 
             lock.unlock();
 
-            worker::HandleConnection(stop_token, socket);
+            worker::HandleConnection(stop_token, socket, profile);
         }
     }
 
-    WorkerPool::WorkerPool(const size_t worker_count) {
+    WorkerPool::WorkerPool(const size_t worker_count, const Profile profile) {
         workers_.reserve(worker_count);
 
         for (size_t idx {0}; idx < worker_count; idx++) {
             Worker worker {
-                .profile = {
-                    .speed = SpeedClass::Normal,
-                    .speed_factor = 1.0
-                },
-                .thread = std::jthread(&WorkerPool::WorkerLoop, this)
+                .profile = profile,
+                .thread = std::jthread(&WorkerPool::WorkerLoop, this, profile)
             };
             workers_.push_back(std::move(worker));
         }
     }
 
-    void WorkerPool::Enqueue(Item item) {
+    void WorkerPool::Enqueue(const Item item) {
         std::unique_lock lock(mutex_);
-        queue_.push(std::move(item));
+        queue_.push(item);
         lock.unlock();
         condition_variable_.notify_one();
     }

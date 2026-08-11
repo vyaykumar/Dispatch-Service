@@ -4,6 +4,7 @@
 
 #include <functional>
 
+#include "../worker_pool.h"
 #include "../../Task_Registry.h"
 #include "../../defer.h"
 #include "../../scope_logger/scope_logger.h"
@@ -82,23 +83,27 @@ namespace worker {
             return {};
         }
 
-        protocol::TaskResult Execute(const protocol::TaskId &taskID, const work_l::Workload& workload) {
+        protocol::TaskResult Execute(const protocol::TaskId &taskID, const work_l::Workload& workload, const worker_pool::Profile& profile) {
             LOG_SCOPE("Executing");
 
             work_l::Config conf {};
+            logging::Event("Worker speed factor: "+ std::to_string(profile.duration_factor));
 
             switch (workload) {
                 case work_l::Workload::SlowSuccess:
-                    conf.duration = std::chrono::milliseconds(2000);
+                    conf.duration = std::chrono::round<std::chrono::milliseconds>
+                        (std::chrono::milliseconds(2000)*profile.duration_factor);
                     conf.type = workload;
                     break;
                 case work_l::Workload::FastSuccess:
                 case work_l::Workload::ImmediateFailure:
-                    conf.duration = std::chrono::milliseconds(0);
+                    conf.duration = std::chrono::round<std::chrono::milliseconds>
+                        (std::chrono::milliseconds(0)*profile.duration_factor);
                     conf.type = workload;
                     break;
                 case work_l::Workload::DelayedFailure:
-                    conf.duration = std::chrono::milliseconds(2000);
+                    conf.duration = std::chrono::round<std::chrono::milliseconds>
+                        (std::chrono::milliseconds(2000)*profile.duration_factor);
                     conf.type = workload;
                     break;
                 case work_l::Workload::RandomChance:
@@ -113,7 +118,7 @@ namespace worker {
             return res;
         }
 
-        std::expected<protocol::TaskResult, ErrorStates> Process (const protocol::TaskId& taskID, work_l::Workload workload) {
+        std::expected<protocol::TaskResult, ErrorStates> Process (const protocol::TaskId& taskID, const work_l::Workload workload, const worker_pool::Profile& profile) {
             LOG_SCOPE("Processing");
 
             using Action = task_registry::Action;
@@ -122,14 +127,14 @@ namespace worker {
             switch (auto [action, result] = g_registry.try_claim(taskID); action) {
                 // case Action::Reject  : logging::Event("Registry decision: Reject.");  return std::unexpected (ErrorStates::JobExists);
                 case Action::Reject  : logging::Event("Registry decision: Reject.");  return std::move (Rejected(taskID));
-                case Action::Execute : logging::Event("Registry decision: Execute."); return std::move (Execute(taskID, workload));
+                case Action::Execute : logging::Event("Registry decision: Execute."); return std::move (Execute(taskID, workload, profile));
                 case Action::Cached  : logging::Event("Registry decision: Cached.");  return std::move (result.value());
             }
             return {};
         }
     }
 
-    void HandleConnection(const std::stop_token stopToken, const socket_t client) {
+    void HandleConnection(const socket_t client, const worker_pool::Profile& profile) {
         LOG_SCOPE("Connection Handler");
 
         defer(transport::CloseSocket(client));
@@ -138,6 +143,6 @@ namespace worker {
         if (!message)
             return;
 
-        auto result = Process(message.value().submit.taskId, message->submit.workload).and_then(std::bind_front(SendResult, client));
+        auto result = Process(message.value().submit.taskId, message->submit.workload, profile).and_then(std::bind_front(SendResult, client));
     }
 }
