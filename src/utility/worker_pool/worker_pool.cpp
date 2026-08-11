@@ -25,11 +25,11 @@ namespace worker_pool {
 
             lock.unlock();
 
-            worker::HandleConnection(stop_token, socket, profile);
+            worker::HandleConnection(socket, profile);
         }
     }
 
-    WorkerPool::WorkerPool(const size_t worker_count, const Profile profile) {
+    WorkerPool::WorkerPool(const size_t worker_count, Profile profile) {
         workers_.reserve(worker_count);
 
         for (size_t idx {0}; idx < worker_count; idx++) {

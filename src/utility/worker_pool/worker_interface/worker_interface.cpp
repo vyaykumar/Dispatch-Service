@@ -134,7 +134,7 @@ namespace worker {
         }
     }
 
-    void HandleConnection(const socket_t client, const worker_pool::Profile& profile) {
+    void HandleConnection(const socket_t client, worker_pool::Profile profile) {
         LOG_SCOPE("Connection Handler");
 
         defer(transport::CloseSocket(client));

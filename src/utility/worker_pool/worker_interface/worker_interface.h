@@ -8,7 +8,7 @@
 #include "../../Wire/transport.h"
 
 namespace worker {
-    void HandleConnection (transport::socket_t, worker_pool::Profile&);
+    void HandleConnection (transport::socket_t, worker_pool::Profile);
 }
 
 #endif //DISPATCH_SERVICE_SMOKETEST_WORKER_INTERFACE_H

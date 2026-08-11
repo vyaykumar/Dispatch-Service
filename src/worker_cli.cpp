@@ -46,7 +46,7 @@ namespace {
             return;
         }
 
-        worker_pool::WorkerPool pool {4};
+        worker_pool::WorkerPool pool {4, {}};
 
         while (true) {
             socket_t client = accept(sock, nullptr, nullptr);
@@ -56,7 +56,6 @@ namespace {
             if (client == transport::kInvalidSocket)
                 continue;
 
-            // std::jthread(worker::HandleConnection, client).detach();
             pool.Enqueue( {.socket = client} );
         }
     }

@@ -19,12 +19,12 @@ namespace worker_pool {
     };
 
     struct Profile {
-        SpeedClass speed;
-        double duration_factor;
+        SpeedClass speed = SpeedClass::Normal;
+        double duration_factor  = 1.0;
     };
 
     struct Worker {
-        Profile profile;
+        Profile profile {};
         std::jthread thread;
     };
 
