@@ -2,10 +2,12 @@
 #define DISPATCH_SERVICE_SMOKETEST_WORKER_POOL_H
 
 #include <condition_variable>
+#include <mutex>
 #include <queue>
 #include <thread>
 
 #include "../Wire/transport.h"
+#include "../scope_logger/scope_logger.h"
 
 namespace worker_pool {
     struct Item {
@@ -36,11 +38,27 @@ namespace worker_pool {
     class WorkerPool {
     public:
         explicit WorkerPool (std::span<size_t> profiles);
+
+        ~WorkerPool()
+        {
+            {
+                std::scoped_lock lock(mutex_);
+                shutting_down_ = true;
+            }
+
+            condition_variable_.notify_all();
+
+            for (auto&[profile, thread] : workers_) {
+                thread.join();
+            }
+        }
+
         void Enqueue (Item item);
 
     private:
         void WorkerLoop(const std::stop_token &stop_token, Profile profile);
 
+        bool shutting_down_ = false;
         std::vector<Worker> workers_;
         std::queue<Item> queue_;
         std::mutex mutex_;

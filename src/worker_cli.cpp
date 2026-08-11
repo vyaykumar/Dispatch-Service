@@ -49,6 +49,13 @@ namespace {
         std::vector <size_t> profiles = {0,1,2,2};
         worker_pool::WorkerPool pool {profiles};
 
+        // {
+        //     std::vector <size_t> temp_prof = {1,1,1,1};
+        //     worker_pool::WorkerPool temp_pool{temp_prof};
+        //
+        //     std::this_thread::sleep_for(std::chrono::seconds(1));
+        // }
+
         while (true) {
             const socket_t client = accept(sock, nullptr, nullptr);
 

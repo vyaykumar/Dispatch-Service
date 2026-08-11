@@ -7,6 +7,7 @@
 #include <functional>
 #include <mutex>
 
+#include "../scope_logger/scope_logger.h"
 #include "worker_interface/worker_interface.h"
 
 namespace worker_pool {
@@ -34,17 +35,26 @@ namespace worker_pool {
     }
 
     void WorkerPool::WorkerLoop(const std::stop_token &stop_token, Profile profile) {
-        while (!stop_token.stop_requested()) {
+        while (!shutting_down_) {
             std::unique_lock lock(mutex_);
 
-            condition_variable_.wait(lock ,[this] { return !queue_.empty(); });
+            condition_variable_.wait(lock,
+                [this] { return !queue_.empty() or shutting_down_; });
+
+            if (shutting_down_) {
+                logging::Event("Worker terminated.");
+                return;
+            }
+
+            if (queue_.empty())
+                continue;
 
             auto [socket] = queue_.front();
             queue_.pop();
-
             lock.unlock();
 
             worker::HandleConnection(socket, profile);
+            logging::Event("Worker exiting.");
         }
     }
 
