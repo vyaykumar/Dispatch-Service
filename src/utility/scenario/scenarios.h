@@ -10,7 +10,8 @@ namespace scenario {
         HappyPath,
         TimeoutRetry,
         CachedResult,
-        ConcurrentClients
+        ConcurrentClients,
+        SpedUpWorkers
     };
 
     enum class TaskStrategy {
@@ -32,4 +33,5 @@ namespace scenario {
     Config getTimeoutConf ();
     Config getCachedConf ();
     Config getConcurrentConf ();
+    Config getSpeedWorkers ();
 }

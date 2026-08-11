@@ -46,10 +46,11 @@ namespace {
             return;
         }
 
-        worker_pool::WorkerPool pool {4, {}};
+        std::vector <size_t> profiles = {0,1,2,2};
+        worker_pool::WorkerPool pool {profiles};
 
         while (true) {
-            socket_t client = accept(sock, nullptr, nullptr);
+            const socket_t client = accept(sock, nullptr, nullptr);
 
             logging::Event("Connection accepted.");
 

@@ -3,6 +3,8 @@
 #include "worker_interface.h"
 
 #include <functional>
+#include <string>
+#include <string_view>
 
 #include "../worker_pool.h"
 #include "../../Task_Registry.h"
@@ -87,6 +89,11 @@ namespace worker {
             LOG_SCOPE("Executing");
 
             work_l::Config conf {};
+
+            auto temp1 = std::string("Worker speed class: ");
+            temp1.append(worker_pool::getSpeed(profile.speed));
+            logging::Event(temp1);
+
             logging::Event("Worker speed factor: "+ std::to_string(profile.duration_factor));
 
             switch (workload) {

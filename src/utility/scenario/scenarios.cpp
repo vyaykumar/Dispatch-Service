@@ -102,4 +102,29 @@ namespace scenario {
             .strategy = TaskStrategy::Unique,
         };
     }
+
+    Config getSpeedWorkers () {
+        return {
+            .scene = Scenario::SpedUpWorkers,
+
+            .client_template = {
+                .serverAddr = "127.0.0.1",
+                .port = 50051,
+
+                .w_conf = {
+                    .type = work_l::Workload::SlowSuccess,
+                    .duration = std::chrono::milliseconds(2000),
+                    .retry_backoff_ms = {50,100}
+                },
+
+                .timeout = std::chrono::milliseconds(5000),
+                .global_timeout = std::chrono::milliseconds(10'000),
+                .max_retries = 0,
+            },
+
+            .clients = 4,
+            .stagger = std::chrono::milliseconds(0),
+            .strategy = TaskStrategy::Unique,
+        };
+    }
 }

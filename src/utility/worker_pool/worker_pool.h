@@ -13,10 +13,15 @@ namespace worker_pool {
     };
 
     enum class SpeedClass {
-        Fast,
-        Normal,
-        Slow
+        Fast = 0,
+        Normal = 1,
+        Slow = 2
     };
+
+    inline std::string_view getSpeed (SpeedClass speed) {
+        constexpr std::string_view names[] = {"Fast", "Normal", "Slow"};
+        return names[static_cast<size_t>(speed)];
+    }
 
     struct Profile {
         SpeedClass speed = SpeedClass::Normal;
@@ -30,7 +35,7 @@ namespace worker_pool {
 
     class WorkerPool {
     public:
-        explicit WorkerPool (size_t worker_count, Profile profile);
+        explicit WorkerPool (std::span<size_t> profiles);
         void Enqueue (Item item);
 
     private:

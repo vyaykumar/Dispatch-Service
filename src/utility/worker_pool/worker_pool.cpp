@@ -11,7 +11,26 @@
 
 namespace worker_pool {
     namespace {
+        Profile getProfile (const size_t choice) {
+            switch (choice) {
+                case 0 :
+                    return {
+                    .speed = SpeedClass::Fast,
+                    .duration_factor = 0.5,
+                };
+                case 1 :
+                    return {
+                    .speed = SpeedClass::Normal,
+                    .duration_factor = 1.0,
+                };
 
+                default:
+                    return {
+                    .speed = SpeedClass::Slow,
+                    .duration_factor = 2.0,
+                };
+            }
+        }
     }
 
     void WorkerPool::WorkerLoop(const std::stop_token &stop_token, Profile profile) {
@@ -29,14 +48,13 @@ namespace worker_pool {
         }
     }
 
-    WorkerPool::WorkerPool(const size_t worker_count, Profile profile) {
-        workers_.reserve(worker_count);
+    WorkerPool::WorkerPool(const std::span<size_t> profiles) {
+        workers_.reserve(profiles.size());
 
-        for (size_t idx {0}; idx < worker_count; idx++) {
-            Worker worker {
-                .profile = profile,
-                .thread = std::jthread(&WorkerPool::WorkerLoop, this, profile)
-            };
+        for (size_t idx {0}; idx < profiles.size(); idx++) {
+            Worker worker { .profile = getProfile(profiles[idx]) };
+            worker.thread = std::jthread(&WorkerPool::WorkerLoop, this, worker.profile);
+
             workers_.push_back(std::move(worker));
         }
     }
