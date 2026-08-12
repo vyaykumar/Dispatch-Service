@@ -13,5 +13,5 @@ namespace workload {
         std::pair<size_t,size_t> retry_backoff_ms {100,500};
     };
 
-    protocol::TaskResult ExecuteWorkload (const Config& config, const protocol::T_ID& taskID);
+    protocol::TaskResult ExecuteWorkload (const Config& config, const protocol::T_ID& task_id);
 }

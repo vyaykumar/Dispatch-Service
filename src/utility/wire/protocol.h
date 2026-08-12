@@ -188,9 +188,9 @@ namespace protocol {
 
     struct DecodedMessage {
         MessageType type;
-        TaskSubmit t_submit;
-        TaskAck t_ack;
-        TaskResult t_result;
+        TaskSubmit task_submit;
+        TaskAck task_ack;
+        TaskResult task_result;
         Cancel cancel;
     };
 
@@ -212,27 +212,27 @@ namespace protocol {
 
         switch (message.type) {
             case MessageType::kTaskSubmit: {
-                message.t_submit.task_id = FieldAsString(*fields, FieldId::kTaskId);
-                message.t_submit.idempotency_key = FieldAsString(*fields, FieldId::kIdempotencyKey);
+                message.task_submit.task_id = FieldAsString(*fields, FieldId::kTaskId);
+                message.task_submit.idempotency_key = FieldAsString(*fields, FieldId::kIdempotencyKey);
                 if (auto pay_it = fields->find(static_cast<uint8_t>(FieldId::kPayload)); pay_it != fields->end())
-                    message.t_submit.payload = pay_it->second;
+                    message.task_submit.payload = pay_it->second;
                 if (auto work_it = fields->find(static_cast<uint8_t>(FieldId::kWorkload));
                     work_it != fields->end() and !work_it->second.empty())
-                    message.t_submit.workload = static_cast<workload::Workload>(work_it->second[0]);
+                    message.task_submit.workload = static_cast<workload::Workload>(work_it->second[0]);
                 break;
             }
             case MessageType::kTaskAck: {
-                message.t_ack.task_id = FieldAsString(*fields, FieldId::kTaskId);
+                message.task_ack.task_id = FieldAsString(*fields, FieldId::kTaskId);
                 break;
             }
             case MessageType::kTaskResult: {
-                message.t_result.task_id = FieldAsString(*fields, FieldId::kTaskId);
+                message.task_result.task_id = FieldAsString(*fields, FieldId::kTaskId);
                 auto statusIt = fields->find(static_cast<uint8_t>(FieldId::kStatus));
-                message.t_result.status = statusIt != fields->end() && !statusIt->second.empty()
+                message.task_result.status = statusIt != fields->end() && !statusIt->second.empty()
                                          ? static_cast<TaskStatus>(statusIt->second[0])
                                          : TaskStatus::kFailed;
                 auto payloadIt = fields->find(static_cast<uint8_t>(FieldId::kPayload));
-                if (payloadIt != fields->end()) message.t_result.payload = payloadIt->second;
+                if (payloadIt != fields->end()) message.task_result.payload = payloadIt->second;
                 break;
             }
             case MessageType::kCancel: {

@@ -23,7 +23,6 @@ namespace task_registry {
 
     class TaskRegistry {
     public:
-
         struct TaskRecord {
             ExecutionStatus status {};
             std::optional<protocol::TaskResult> result {};
@@ -34,11 +33,8 @@ namespace task_registry {
             std::optional<protocol::TaskResult> result {};
         };
 
-        Result try_claim (const protocol::TaskId &id) {
-            // Acquire lock.
+        Result tryClaim (const protocol::T_ID &id) {
             std::scoped_lock lock (mutex_);
-
-            //
 
             // Check if it exists. And it does.
             if (const auto entry_it = task_table_.find(id); entry_it != task_table_.end()) {
@@ -54,26 +50,22 @@ namespace task_registry {
             return {.action = Action::Execute};
         }
 
-        void mark_complete (const protocol::TaskId &id, protocol::TaskResult task) {
-            // Acquire lock.
+        void markComplete (const protocol::T_ID &id, protocol::TaskResult task) {
             std::scoped_lock lock (mutex_);
 
-            // Check if id exists.
             const auto it = task_table_.find(id);
 
-            // Incorrect input, or has been tampered with.
             if (it == task_table_.end() or it->second.status != ExecutionStatus::Processing) {
                 std::cout << "Function mark_complete called on non-Processing task.\nTerminating.\n";
                 std::terminate();
             }
 
-            // Set task associated with TaskID, attached to TaskID parameter, to Completed.
             it->second.status = ExecutionStatus::Completed;
             it->second.result = std::move(task);
         }
 
     private:
-        std::unordered_map<protocol::TaskId, TaskRecord> task_table_;
+        std::unordered_map<protocol::T_ID, TaskRecord> task_table_;
         std::mutex mutex_;
     };
 }

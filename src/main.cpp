@@ -2,9 +2,9 @@
 #include "utility/execution/execution_engine.h"
 
 int main() {
-    // const auto conf = scenario::getHappyConf();
+    const auto conf = scenario::getHappyConfig();
     // const auto conf = scenario::getTimeoutConf();
-    const auto conf = scenario::getCachedConf();
+    // const auto conf = scenario::getCachedConf();
     // const auto conf = scenario::getConcurrentConf();
     // const auto conf = scenario::getSpeedWorkers();
 

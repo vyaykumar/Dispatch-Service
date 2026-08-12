@@ -55,7 +55,7 @@ namespace worker {
         // Monadic chain function
         std::expected<protocol::DecodedMessage, ErrorStates> SubmitACK(const socket_t socket, protocol::DecodedMessage message)
         {
-            return SendACK(socket,message.t_submit.task_id)
+            return SendACK(socket,message.task_submit.task_id)
             .transform([msg = std::move(message)]() mutable
                 { return std::move(msg); }
             );
@@ -144,7 +144,7 @@ namespace worker {
             return;
 
         if (const auto result =
-            Process(message.value().t_submit.task_id, message->t_submit.workload, profile)
+            Process(message.value().task_submit.task_id, message->task_submit.workload, profile)
             .and_then(std::bind_front(SendResult, socket));
             !result)
             logging::Event("Failed to send result.");

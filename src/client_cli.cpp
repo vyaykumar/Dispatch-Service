@@ -117,9 +117,9 @@ recAck (const DispatchContext ctx) {
     if (!ackMsg or ackMsg->type != protocol::MessageType::kTaskAck)
         return std::unexpected(DispatchError::ACK_Failure);
 
-    std::cout << "[dispatch]: TaskID(" << ackMsg->t_ack.task_id << ") acknowledged.\n";
+    std::cout << "[dispatch]: TaskID(" << ackMsg->task_ack.task_id << ") acknowledged.\n";
 
-    return ackMsg->t_ack;
+    return ackMsg->task_ack;
 }
 
 // Awaiting Message.

@@ -73,8 +73,8 @@ ClientState step (const state::SubmitTask&, StateContext& state_context) {
     const auto& socket_ = state_context.socket;
 
     const protocol::TaskSubmit t_submit{
-        .taskId = state_context.context.task_id,
-        .idempotencyKey = state_context.context.task_id+state_context.context.client_id,
+        .task_id = state_context.context.task_id,
+        .idempotency_key = state_context.context.task_id+state_context.context.client_id,
         .payload = state_context.context.workload_config.payload,
     };
 
@@ -121,10 +121,10 @@ ClientState step (const state::WaitResult&, StateContext& state_context) {
     logging::Event("Received result.");
 
     state_context.result.payload.assign(
-        message->result.payload.begin(), message->result.payload.end());
-    state_context.result.status = message->result.status;
+        message->task_result.payload.begin(), message->task_result.payload.end());
+    state_context.result.status = message->task_result.status;
 
-    if (message->result.status == protocol::TaskStatus::kSucceeded)
+    if (message->task_result.status == protocol::TaskStatus::kSucceeded)
         return state::Success {};
 
     // TODO: kInProgress should not become Failure.
@@ -164,7 +164,7 @@ ClientState step (const state::CloseSocket&, const StateContext& state_context) 
 }
 
 ClientState step (const state::BackOff&, const StateContext& state_context) {
-    const auto delay = rando::Delay(state_context.context.workload_config.retry_backoff_ms);
+    const auto delay = random_utils::Delay(state_context.context.workload_config.retry_backoff_ms);
     LOG_SCOPE("Backing Off for " + std::to_string(delay.count()) + "ms.");
 
     std::this_thread::sleep_for(delay);
