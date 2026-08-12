@@ -19,28 +19,28 @@ namespace {
     constexpr uint16_t kPort = 50051;
 
     void RunWorker() {
-        const socket_t sock = socket (AF_INET, SOCK_STREAM, 0);
+        const socket_t socket_ = socket (AF_INET, SOCK_STREAM, 0);
 
-        if (sock == transport::kInvalidSocket) {
+        if (socket_ == transport::kInvalidSocket) {
             logging::Event("Dead Socket. Terminating.");
             return;
         }
 
-        sockaddr_in cAddr{};
-        cAddr.sin_family = AF_INET;
-        cAddr.sin_port = htons(kPort);
-        cAddr.sin_addr.s_addr = INADDR_ANY;
+        sockaddr_in socket_address{};
+        socket_address.sin_family = AF_INET;
+        socket_address.sin_port = htons(kPort);
+        socket_address.sin_addr.s_addr = INADDR_ANY;
 
-        const int opt {1};
-        setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char *>(&opt), sizeof(opt));
-        auto flag = bind(sock, reinterpret_cast<sockaddr*>(&cAddr), sizeof(cAddr));
+        constexpr int option {1};
+        setsockopt(socket_, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char *>(&option), sizeof(option));
+        auto flag = bind(socket_, reinterpret_cast<sockaddr*>(&socket_address), sizeof(socket_address));
 
         if (flag) {
             logging::Event("Binding failed.");
             return;
         }
 
-        flag = listen(sock, SOMAXCONN);
+        flag = listen(socket_, SOMAXCONN);
         if (flag) {
             logging::Event("Listening failed.");
             return;
@@ -58,7 +58,7 @@ namespace {
         // }
 
         while (true) {
-            const socket_t client = accept(sock, nullptr, nullptr);
+            const socket_t client = accept(socket_, nullptr, nullptr);
 
             logging::Event("Connection accepted.");
 
