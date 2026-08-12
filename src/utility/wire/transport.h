@@ -1,15 +1,3 @@
-// transport.h — raw TCP framing primitives.
-//
-// This layer knows nothing about tasks, dispatchers, or workers. It only
-// solves TCP's "no message boundaries" problem: given a socket, send and
-// receive discrete, length-delimited frames reliably, including across
-// partial reads/writes.
-//
-// Frame format: [4-byte big-endian length][1-byte type][payload bytes]
-//
-// The `type` byte here is a raw wire type — protocol.h interprets it as
-// a MessageType and builds real task semantics on top.
-
 #pragma once
 
 #include <cstdint>
