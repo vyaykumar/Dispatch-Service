@@ -16,18 +16,18 @@ namespace worker_pool {
             switch (choice) {
                 case 0 :
                     return {
-                    .speed = SpeedClass::Fast,
+                    .speed = SpeedClass::kFast,
                     .duration_factor = 0.5,
                 };
                 case 1 :
                     return {
-                    .speed = SpeedClass::Normal,
+                    .speed = SpeedClass::kNormal,
                     .duration_factor = 1.0,
                 };
 
                 default:
                     return {
-                    .speed = SpeedClass::Slow,
+                    .speed = SpeedClass::kSlow,
                     .duration_factor = 2.0,
                 };
             }

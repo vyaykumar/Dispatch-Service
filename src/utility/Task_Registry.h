@@ -11,14 +11,14 @@
 namespace task_registry {
 
     enum class ExecutionStatus {
-        Processing,
-        Completed
+        kProcessing,
+        kCompleted
     };
 
     enum class Action {
-        Reject,
-        Execute,
-        Cached
+        kReject,
+        kExecute,
+        kCached
     };
 
     class TaskRegistry {
@@ -38,16 +38,16 @@ namespace task_registry {
 
             // Check if it exists. And it does.
             if (const auto entry_it = task_table_.find(task_id); entry_it != task_table_.end()) {
-                if (entry_it->second.status == ExecutionStatus::Completed)
-                    return {.action = Action::Cached, .t_result = entry_it->second.t_result};
+                if (entry_it->second.status == ExecutionStatus::kCompleted)
+                    return {.action = Action::kCached, .t_result = entry_it->second.t_result};
 
                 // It has to be Processing, then.
-                return {.action = Action::Reject};
+                return {.action = Action::kReject};
             }
 
             // It doesnt exist.
-            task_table_[task_id] = {.status = ExecutionStatus::Processing};
-            return {.action = Action::Execute};
+            task_table_[task_id] = {.status = ExecutionStatus::kProcessing};
+            return {.action = Action::kExecute};
         }
 
         void markComplete (const protocol::T_ID &task_id, protocol::TaskResult task_result) {
@@ -55,12 +55,12 @@ namespace task_registry {
 
             const auto it = task_table_.find(task_id);
 
-            if (it == task_table_.end() or it->second.status != ExecutionStatus::Processing) {
+            if (it == task_table_.end() or it->second.status != ExecutionStatus::kProcessing) {
                 std::cout << "Function mark_complete called on non-Processing task.\nTerminating.\n";
                 std::terminate();
             }
 
-            it->second.status = ExecutionStatus::Completed;
+            it->second.status = ExecutionStatus::kCompleted;
             it->second.t_result = std::move(task_result);
         }
 

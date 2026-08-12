@@ -7,7 +7,7 @@
 namespace workload {
 
     struct Config {
-        Workload type { Workload::SlowSuccess };
+        Workload type { Workload::kSlowSuccess };
         std::chrono::milliseconds duration { std::chrono::seconds(2) };
         std::vector<uint8_t> payload {'H','e','l','l','o'};
         std::pair<size_t,size_t> retry_backoff_ms {100,500};

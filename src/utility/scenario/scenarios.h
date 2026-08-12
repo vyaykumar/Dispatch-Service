@@ -7,16 +7,16 @@
 
 namespace scenario {
     enum class Scenario {
-        HappyPath,
-        TimeoutRetry,
-        CachedResult,
-        ConcurrentClients,
-        SpedUpWorkers
+        kHappyPath,
+        kTimeoutRetry,
+        kCachedResult,
+        kConcurrentClients,
+        kSpedUpWorkers
     };
 
     enum class TaskStrategy {
-        Unique,
-        Shared
+        kUnique,
+        kShared
     };
 
     struct Config {

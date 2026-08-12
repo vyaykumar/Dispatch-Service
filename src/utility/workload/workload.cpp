@@ -37,17 +37,17 @@ namespace workload {
 
     protocol::TaskResult ExecuteWorkload (const Config &config, const protocol::T_ID &task_id) {
         switch (config.type) {
-            case Workload::SlowSuccess:
+            case Workload::kSlowSuccess:
                 return doExecute(task_id, protocol::TaskStatus::kSucceeded, config.duration);
-            case Workload::FastSuccess:
+            case Workload::kFastSuccess:
                 return doExecute(task_id, protocol::TaskStatus::kSucceeded, std::nullopt);
-            case Workload::ImmediateFailure:
+            case Workload::kImmediateFailure:
                 return doExecute(task_id, protocol::TaskStatus::kFailed, std::nullopt);
-            case Workload::DelayedFailure:
+            case Workload::kDelayedFailure:
                 return doExecute(task_id, protocol::TaskStatus::kFailed, config.duration);
-            case Workload::RandomChance:
+            case Workload::kRandomChance:
                 return doExecute(task_id, Chance(0.7), random_utils::Delay({1000, 5000}));
-            case Workload::RandomDelay:
+            case Workload::kRandomDelay:
                 return doExecute(task_id, protocol::TaskStatus::kSucceeded, random_utils::Delay({1000, 5000}));
         }
         std::unreachable();

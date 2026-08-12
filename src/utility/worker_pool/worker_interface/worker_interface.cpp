@@ -19,9 +19,9 @@ namespace worker {
         task_registry::TaskRegistry task_registry;
 
         enum class ErrorStates {
-            MalformedMessage,
-            AnomalousMessage,
-            ACKFailure,
+            kMalformedMessage,
+            kAnomalousMessage,
+            kACKFailure,
         };
 
         std::expected<protocol::DecodedMessage, ErrorStates> ReceiveMessage (const socket_t socket) {
@@ -30,12 +30,12 @@ namespace worker {
 
             if (message == std::nullopt) {
                 logging::Event ("Malformed message. Rejected.");
-                return std::unexpected(ErrorStates::MalformedMessage);
+                return std::unexpected(ErrorStates::kMalformedMessage);
             }
 
             if (message->type != protocol::MessageType::kTaskSubmit) {
                 logging::Event ("Anomalous message received. Rejected.");
-                return std::unexpected(ErrorStates::AnomalousMessage);
+                return std::unexpected(ErrorStates::kAnomalousMessage);
             }
 
             return message.value();
@@ -46,7 +46,7 @@ namespace worker {
 
             if (!protocol::SendTaskAck(socket, {t_id})) {
                 logging::Event ("ACK Failure.");
-                return std::unexpected(ErrorStates::ACKFailure);
+                return std::unexpected(ErrorStates::kACKFailure);
             }
             logging::Event("ACK sent.");
             return {};
@@ -90,24 +90,24 @@ namespace worker {
             logging::Event("Worker speed factor: "+ std::to_string(profile.duration_factor));
 
             switch (workload) {
-                case workload::Workload::SlowSuccess:
+                case workload::Workload::kSlowSuccess:
                     config.duration = std::chrono::round<std::chrono::milliseconds>
                         (std::chrono::milliseconds(2000)*profile.duration_factor);
                     config.type = workload;
                     break;
-                case workload::Workload::FastSuccess:
-                case workload::Workload::ImmediateFailure:
+                case workload::Workload::kFastSuccess:
+                case workload::Workload::kImmediateFailure:
                     config.duration = std::chrono::round<std::chrono::milliseconds>
                         (std::chrono::milliseconds(0)*profile.duration_factor);
                     config.type = workload;
                     break;
-                case workload::Workload::DelayedFailure:
+                case workload::Workload::kDelayedFailure:
                     config.duration = std::chrono::round<std::chrono::milliseconds>
                         (std::chrono::milliseconds(2000)*profile.duration_factor);
                     config.type = workload;
                     break;
-                case workload::Workload::RandomChance:
-                case workload::Workload::RandomDelay:
+                case workload::Workload::kRandomChance:
+                case workload::Workload::kRandomDelay:
                     config.type = workload;
                     break;
             }
@@ -126,9 +126,9 @@ namespace worker {
             logging::Event("Checking for Task(" + t_id + ").");
             switch (auto [action, result] = task_registry.tryClaim(t_id); action) {
                 // case Action::Reject  : logging::Event("Registry decision: Reject.");  return std::unexpected (ErrorStates::JobExists);
-                case Action::Reject  : logging::Event("Registry decision: Reject.");  return Rejected(t_id);
-                case Action::Execute : logging::Event("Registry decision: Execute."); return Execute(t_id, workload, profile);
-                case Action::Cached  : logging::Event("Registry decision: Cached.");  return result.value();
+                case Action::kReject  : logging::Event("Registry decision: Reject.");  return Rejected(t_id);
+                case Action::kExecute : logging::Event("Registry decision: Execute."); return Execute(t_id, workload, profile);
+                case Action::kCached  : logging::Event("Registry decision: Cached.");  return result.value();
             }
             return {};
         }

@@ -15,9 +15,9 @@ namespace worker_pool {
     };
 
     enum class SpeedClass {
-        Fast = 0,
-        Normal = 1,
-        Slow = 2
+        kFast = 0,
+        kNormal = 1,
+        kSlow = 2
     };
 
     inline std::string_view getSpeed (SpeedClass speed) {
@@ -26,7 +26,7 @@ namespace worker_pool {
     }
 
     struct Profile {
-        SpeedClass speed = SpeedClass::Normal;
+        SpeedClass speed = SpeedClass::kNormal;
         double duration_factor  = 1.0;
     };
 

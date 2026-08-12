@@ -6,13 +6,13 @@ namespace scenario {
 
     Config getHappyConfig () {
         return {
-            .scene = Scenario::HappyPath,
+            .scene = Scenario::kHappyPath,
             .client_template = {
                 .server_address = "127.0.0.1",
                 .port = 50051,
 
                 .workload_config = {
-                    .type = workload::Workload::FastSuccess,
+                    .type = workload::Workload::kFastSuccess,
                     .duration = std::chrono::milliseconds(500),
                 },
 
@@ -22,19 +22,19 @@ namespace scenario {
 
             .n_clients = 1,
             .stagger = std::chrono::milliseconds(0),
-            .strategy = TaskStrategy::Unique,
+            .strategy = TaskStrategy::kUnique,
         };
     }
 
     Config getTimeoutConfig () {
         return {
-            .scene = Scenario::HappyPath,
+            .scene = Scenario::kHappyPath,
             .client_template = {
                 .server_address = "127.0.0.1",
                 .port = 50051,
 
                 .workload_config = {
-                    .type = workload::Workload::SlowSuccess,
+                    .type = workload::Workload::kSlowSuccess,
                     .duration = std::chrono::milliseconds(2500),
                     .retry_backoff_ms = {50,100}
                 },
@@ -45,20 +45,20 @@ namespace scenario {
             },
             .n_clients = 1,
             .stagger = std::chrono::milliseconds(0),
-            .strategy = TaskStrategy::Unique,
+            .strategy = TaskStrategy::kUnique,
         };
     }
 
     Config getCachedConfig () {
         return {
-            .scene = Scenario::CachedResult,
+            .scene = Scenario::kCachedResult,
 
             .client_template = {
                 .server_address = "127.0.0.1",
                 .port = 50051,
 
                 .workload_config = {
-                    .type = workload::Workload::SlowSuccess,
+                    .type = workload::Workload::kSlowSuccess,
                     .duration = std::chrono::milliseconds(2500),
                     .retry_backoff_ms = {50,100}
                 },
@@ -70,20 +70,20 @@ namespace scenario {
 
             .n_clients = 2,
             .stagger = std::chrono::milliseconds(2500),
-            .strategy = TaskStrategy::Shared,
+            .strategy = TaskStrategy::kShared,
         };
     }
 
     Config getConcurrentConfig () {
         return {
-            .scene = Scenario::ConcurrentClients,
+            .scene = Scenario::kConcurrentClients,
 
             .client_template = {
                 .server_address = "127.0.0.1",
                 .port = 50051,
 
                 .workload_config = {
-                    .type = workload::Workload::SlowSuccess,
+                    .type = workload::Workload::kSlowSuccess,
                     .duration = std::chrono::milliseconds(2000),
                     .retry_backoff_ms = {50,100}
                 },
@@ -95,20 +95,20 @@ namespace scenario {
 
             .n_clients = 4,
             .stagger = std::chrono::milliseconds(0),
-            .strategy = TaskStrategy::Unique,
+            .strategy = TaskStrategy::kUnique,
         };
     }
 
     Config getSpeedWorkersConfig () {
         return {
-            .scene = Scenario::SpedUpWorkers,
+            .scene = Scenario::kSpedUpWorkers,
 
             .client_template = {
                 .server_address = "127.0.0.1",
                 .port = 50051,
 
                 .workload_config = {
-                    .type = workload::Workload::SlowSuccess,
+                    .type = workload::Workload::kSlowSuccess,
                     .duration = std::chrono::milliseconds(2000),
                     .retry_backoff_ms = {50,100}
                 },
@@ -120,7 +120,7 @@ namespace scenario {
 
             .n_clients = 4,
             .stagger = std::chrono::milliseconds(0),
-            .strategy = TaskStrategy::Unique,
+            .strategy = TaskStrategy::kUnique,
         };
     }
 }

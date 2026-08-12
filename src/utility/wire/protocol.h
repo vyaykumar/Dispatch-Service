@@ -43,8 +43,8 @@ namespace protocol {
     };
 
     enum class ParseError : uint8_t {
-        TruncHeader = 0,
-        TruncValue
+        kTruncHeader = 0,
+        kTruncValue
     };
 
     // ---- TLV encode/decode ----
@@ -99,7 +99,7 @@ namespace protocol {
 
         while (offset < size) {
             if (size - offset < 5)
-                return std::unexpected(ParseError::TruncHeader);
+                return std::unexpected(ParseError::kTruncHeader);
 
             const uint8_t type = input_stream[offset++];
 
@@ -111,7 +111,7 @@ namespace protocol {
             offset += 4;
 
             if (length > size - offset)
-                return std::unexpected(ParseError::TruncValue);
+                return std::unexpected(ParseError::kTruncValue);
 
             std::vector value(input_stream + offset, input_stream + offset + length);
             offset += length;
@@ -134,7 +134,7 @@ namespace protocol {
         T_ID task_id;
         std::string idempotency_key;
         std::vector<uint8_t> payload;
-        workload::Workload workload = workload::Workload::SlowSuccess;
+        workload::Workload workload = workload::Workload::kSlowSuccess;
     };
 
     struct TaskAck {

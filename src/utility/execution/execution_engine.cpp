@@ -9,10 +9,10 @@ namespace execution {
         context.client_id = "client_"+std::to_string(idx);
 
         switch (config.strategy) {
-            case scenario::TaskStrategy::Unique:
+            case scenario::TaskStrategy::kUnique:
                 context.task_id = "task_" + std::to_string(idx);
                 break;
-            case scenario::TaskStrategy::Shared:
+            case scenario::TaskStrategy::kShared:
                 context.task_id = "shared_task";
                 break;
         }
