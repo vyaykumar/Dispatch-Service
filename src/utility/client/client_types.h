@@ -46,8 +46,8 @@ using ClientState = std::variant<
 struct Context {
     std::string server_address;
     uint16_t port;
-    protocol::TaskId task_id;
-    work_l::Config workload_config;
+    protocol::T_ID task_id;
+    workload::Config workload_config;
     std::chrono::milliseconds timeout;
     std::chrono::milliseconds global_timeout;
     int max_retries {0};
@@ -58,7 +58,7 @@ struct Context {
 struct Result {
     bool success;
     std::string error;
-    protocol::TaskId task_id;
+    protocol::T_ID task_id;
     std::string client_id;
     uint64_t execution_time;
     size_t retry_count;

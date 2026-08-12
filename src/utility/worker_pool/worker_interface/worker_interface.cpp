@@ -41,7 +41,7 @@ namespace worker {
             return message.value();
         }
 
-        std::expected <void, ErrorStates> SendACK (const socket_t socket, const protocol::TaskId& t_id) {
+        std::expected <void, ErrorStates> SendACK (const socket_t socket, const protocol::T_ID& t_id) {
             LOG_SCOPE("Sending ACK");
 
             if (!protocol::SendTaskAck(socket, {t_id})) {
@@ -55,16 +55,16 @@ namespace worker {
         // Monadic chain function
         std::expected<protocol::DecodedMessage, ErrorStates> SubmitACK(const socket_t socket, protocol::DecodedMessage message)
         {
-            return SendACK(socket,message.submit.taskId)
+            return SendACK(socket,message.t_submit.task_id)
             .transform([msg = std::move(message)]() mutable
                 { return std::move(msg); }
             );
         }
 
-        protocol::TaskResult Rejected (const protocol::TaskId& t_id) {
+        protocol::TaskResult Rejected (const protocol::T_ID& t_id) {
             std::string payload = "Task exists.";
             return {
-                .t_id = t_id,
+                .task_id = t_id,
                 .status = protocol::TaskStatus::kInProgress,
                 .payload = { payload.begin(), payload.end() }
             };
@@ -76,49 +76,49 @@ namespace worker {
             if (protocol::SendTaskResult(socket, result))
                 logging::Event("Result successfully sent.");
             else
-                logging::Event("Result for taskID(" + result.t_id + ") couldn't be sent.");
+                logging::Event("Result for taskID(" + result.task_id + ") couldn't be sent.");
 
             return {};
         }
 
-        protocol::TaskResult Execute(const protocol::TaskId &taskID, const work_l::Workload& workload, const worker_pool::Profile& profile) {
+        protocol::TaskResult Execute(const protocol::T_ID &taskID, const workload::Workload& workload, const worker_pool::Profile& profile) {
             LOG_SCOPE("Executing");
 
-            work_l::Config config {};
+            workload::Config config {};
 
             logging::Event("Worker speed class: " + std::string(worker_pool::getSpeed(profile.speed)));
             logging::Event("Worker speed factor: "+ std::to_string(profile.duration_factor));
 
             switch (workload) {
-                case work_l::Workload::SlowSuccess:
+                case workload::Workload::SlowSuccess:
                     config.duration = std::chrono::round<std::chrono::milliseconds>
                         (std::chrono::milliseconds(2000)*profile.duration_factor);
                     config.type = workload;
                     break;
-                case work_l::Workload::FastSuccess:
-                case work_l::Workload::ImmediateFailure:
+                case workload::Workload::FastSuccess:
+                case workload::Workload::ImmediateFailure:
                     config.duration = std::chrono::round<std::chrono::milliseconds>
                         (std::chrono::milliseconds(0)*profile.duration_factor);
                     config.type = workload;
                     break;
-                case work_l::Workload::DelayedFailure:
+                case workload::Workload::DelayedFailure:
                     config.duration = std::chrono::round<std::chrono::milliseconds>
                         (std::chrono::milliseconds(2000)*profile.duration_factor);
                     config.type = workload;
                     break;
-                case work_l::Workload::RandomChance:
-                case work_l::Workload::RandomDelay:
+                case workload::Workload::RandomChance:
+                case workload::Workload::RandomDelay:
                     config.type = workload;
                     break;
             }
 
-            auto res = work_l::ExecuteWorkload(config, taskID);
+            auto res = workload::ExecuteWorkload(config, taskID);
             task_registry.markComplete(taskID, res);
 
             return res;
         }
 
-        std::expected<protocol::TaskResult, ErrorStates> Process (const protocol::TaskId& t_id, const work_l::Workload workload, const worker_pool::Profile& profile) {
+        std::expected<protocol::TaskResult, ErrorStates> Process (const protocol::T_ID& t_id, const workload::Workload workload, const worker_pool::Profile& profile) {
             LOG_SCOPE("Processing");
 
             using Action = task_registry::Action;
@@ -144,7 +144,7 @@ namespace worker {
             return;
 
         if (const auto result =
-            Process(message.value().submit.taskId, message->submit.workload, profile)
+            Process(message.value().t_submit.task_id, message->t_submit.workload, profile)
             .and_then(std::bind_front(SendResult, socket));
             !result)
             logging::Event("Failed to send result.");

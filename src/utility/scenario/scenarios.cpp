@@ -12,7 +12,7 @@ namespace scenario {
                 .port = 50051,
 
                 .workload_config = {
-                    .type = work_l::Workload::FastSuccess,
+                    .type = workload::Workload::FastSuccess,
                     .duration = std::chrono::milliseconds(500),
                 },
 
@@ -34,7 +34,7 @@ namespace scenario {
                 .port = 50051,
 
                 .workload_config = {
-                    .type = work_l::Workload::SlowSuccess,
+                    .type = workload::Workload::SlowSuccess,
                     .duration = std::chrono::milliseconds(2500),
                     .retry_backoff_ms = {50,100}
                 },
@@ -58,7 +58,7 @@ namespace scenario {
                 .port = 50051,
 
                 .workload_config = {
-                    .type = work_l::Workload::SlowSuccess,
+                    .type = workload::Workload::SlowSuccess,
                     .duration = std::chrono::milliseconds(2500),
                     .retry_backoff_ms = {50,100}
                 },
@@ -83,7 +83,7 @@ namespace scenario {
                 .port = 50051,
 
                 .workload_config = {
-                    .type = work_l::Workload::SlowSuccess,
+                    .type = workload::Workload::SlowSuccess,
                     .duration = std::chrono::milliseconds(2000),
                     .retry_backoff_ms = {50,100}
                 },
@@ -108,7 +108,7 @@ namespace scenario {
                 .port = 50051,
 
                 .workload_config = {
-                    .type = work_l::Workload::SlowSuccess,
+                    .type = workload::Workload::SlowSuccess,
                     .duration = std::chrono::milliseconds(2000),
                     .retry_backoff_ms = {50,100}
                 },

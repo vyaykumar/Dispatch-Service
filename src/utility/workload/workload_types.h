@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdint>
 
-namespace work_l {
+namespace workload {
     enum class Workload : uint8_t {
         SlowSuccess,
         FastSuccess,

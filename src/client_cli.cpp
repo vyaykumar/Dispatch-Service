@@ -93,8 +93,8 @@ startConn(const DispatchContext ctx) {
 submitTask (const DispatchContext ctx) {
     auto [sock, _] = ctx;
     const protocol::TaskSubmit submit{
-        .taskId = "task-0001",
-        .idempotencyKey = "idem-key-abc",
+        .task_id = "task-0001",
+        .idempotency_key = "idem-key-abc",
         .payload = std::vector<uint8_t>{'h', 'e', 'l', 'l', 'o'}
     };
 
@@ -117,9 +117,9 @@ recAck (const DispatchContext ctx) {
     if (!ackMsg or ackMsg->type != protocol::MessageType::kTaskAck)
         return std::unexpected(DispatchError::ACK_Failure);
 
-    std::cout << "[dispatch]: TaskID(" << ackMsg->ack.taskId << ") acknowledged.\n";
+    std::cout << "[dispatch]: TaskID(" << ackMsg->t_ack.task_id << ") acknowledged.\n";
 
-    return ackMsg->ack;
+    return ackMsg->t_ack;
 }
 
 // Awaiting Message.

@@ -17,7 +17,7 @@
 namespace protocol {
 
     using FieldMap = std::pmr::unordered_map<uint8_t, std::vector<uint8_t>>;
-    using TaskId = std::string;
+    using T_ID = std::string;
 
     enum class MessageType : uint8_t {
         kTaskSubmit = 1,
@@ -131,56 +131,56 @@ namespace protocol {
     // ---- Message structs ----
 
     struct TaskSubmit {
-        std::string taskId;
-        std::string idempotencyKey;
+        T_ID task_id;
+        std::string idempotency_key;
         std::vector<uint8_t> payload;
-        work_l::Workload workload = work_l::Workload::SlowSuccess;
+        workload::Workload workload = workload::Workload::SlowSuccess;
     };
 
     struct TaskAck {
-        std::string taskId;
+        T_ID task_id;
     };
 
     struct TaskResult {
-        std::string t_id;
+        T_ID task_id;
         TaskStatus status;
         std::vector<uint8_t> payload;  // result data, or error info if failed
     };
 
     struct Cancel {
-        std::string taskId;
+        T_ID task_id;
     };
 
 
     // ---- Encode: struct -> raw frame, ready for transport::SendFrame ----
 
-    inline bool SendTaskSubmit(transport::socket_t s, const TaskSubmit& msg) {
-        FieldWriter w;
-        w.AddString(FieldId::kTaskId, msg.taskId);
-        w.AddString(FieldId::kIdempotencyKey, msg.idempotencyKey);
-        w.AddRaw(FieldId::kPayload, msg.payload);
-        w.AddByte(FieldId::kWorkload, static_cast<uint8_t>(msg.workload));
-        return transport::SendFrame(s, static_cast<uint8_t>(MessageType::kTaskSubmit), std::move(w).finish());
+    inline bool SendTaskSubmit(const transport::socket_t socket, const TaskSubmit& message) {
+        FieldWriter writer;
+        writer.AddString(FieldId::kTaskId, message.task_id);
+        writer.AddString(FieldId::kIdempotencyKey, message.idempotency_key);
+        writer.AddRaw(FieldId::kPayload, message.payload);
+        writer.AddByte(FieldId::kWorkload, static_cast<uint8_t>(message.workload));
+        return transport::SendFrame(socket, static_cast<uint8_t>(MessageType::kTaskSubmit), std::move(writer).finish());
     }
 
-    inline bool SendTaskAck(transport::socket_t s, const TaskAck& msg) {
-        FieldWriter w;
-        w.AddString(FieldId::kTaskId, msg.taskId);
-        return transport::SendFrame(s, static_cast<uint8_t>(MessageType::kTaskAck), std::move(w).finish());
+    inline bool SendTaskAck(transport::socket_t socket, const TaskAck& message) {
+        FieldWriter writer;
+        writer.AddString(FieldId::kTaskId, message.task_id);
+        return transport::SendFrame(socket, static_cast<uint8_t>(MessageType::kTaskAck), std::move(writer).finish());
     }
 
-    inline bool SendTaskResult(transport::socket_t s, const TaskResult& msg) {
-        FieldWriter w;
-        w.AddString(FieldId::kTaskId, msg.t_id);
-        w.AddByte(FieldId::kStatus, static_cast<uint8_t>(msg.status));
-        w.AddRaw(FieldId::kPayload, msg.payload);
-        return transport::SendFrame(s, static_cast<uint8_t>(MessageType::kTaskResult), std::move(w).finish());
+    inline bool SendTaskResult(transport::socket_t socket, const TaskResult& message) {
+        FieldWriter writer;
+        writer.AddString(FieldId::kTaskId, message.task_id);
+        writer.AddByte(FieldId::kStatus, static_cast<uint8_t>(message.status));
+        writer.AddRaw(FieldId::kPayload, message.payload);
+        return transport::SendFrame(socket, static_cast<uint8_t>(MessageType::kTaskResult), std::move(writer).finish());
     }
 
-    inline bool SendCancel(transport::socket_t s, const Cancel& msg) {
-        FieldWriter w;
-        w.AddString(FieldId::kTaskId, msg.taskId);
-        return transport::SendFrame(s, static_cast<uint8_t>(MessageType::kCancel), std::move(w).finish());
+    inline bool SendCancel(transport::socket_t socket, const Cancel& message) {
+        FieldWriter writer;
+        writer.AddString(FieldId::kTaskId, message.task_id);
+        return transport::SendFrame(socket, static_cast<uint8_t>(MessageType::kCancel), std::move(writer).finish());
     }
 
 
@@ -188,9 +188,9 @@ namespace protocol {
 
     struct DecodedMessage {
         MessageType type;
-        TaskSubmit submit;
-        TaskAck ack;
-        TaskResult result;
+        TaskSubmit t_submit;
+        TaskAck t_ack;
+        TaskResult t_result;
         Cancel cancel;
     };
 
@@ -200,49 +200,49 @@ namespace protocol {
         ParseError
     };
 
-    inline std::optional<DecodedMessage> ReceiveMessage(const transport::socket_t s) {
-        auto raw = transport::RecvFrame(s);
+    inline std::optional<DecodedMessage> ReceiveMessage(const transport::socket_t socket) {
+        auto raw = transport::RecvFrame(socket);
         if (!raw) return std::nullopt;
 
         auto fields = ParseFields(raw->payload.data(), raw->payload.size());
         if (!fields) return std::nullopt;
 
-        DecodedMessage msg{};
-        msg.type = static_cast<MessageType>(raw->type);
+        DecodedMessage message{};
+        message.type = static_cast<MessageType>(raw->type);
 
-        switch (msg.type) {
+        switch (message.type) {
             case MessageType::kTaskSubmit: {
-                msg.submit.taskId = FieldAsString(*fields, FieldId::kTaskId);
-                msg.submit.idempotencyKey = FieldAsString(*fields, FieldId::kIdempotencyKey);
+                message.t_submit.task_id = FieldAsString(*fields, FieldId::kTaskId);
+                message.t_submit.idempotency_key = FieldAsString(*fields, FieldId::kIdempotencyKey);
                 if (auto pay_it = fields->find(static_cast<uint8_t>(FieldId::kPayload)); pay_it != fields->end())
-                    msg.submit.payload = pay_it->second;
+                    message.t_submit.payload = pay_it->second;
                 if (auto work_it = fields->find(static_cast<uint8_t>(FieldId::kWorkload));
                     work_it != fields->end() and !work_it->second.empty())
-                    msg.submit.workload = static_cast<work_l::Workload>(work_it->second[0]);
+                    message.t_submit.workload = static_cast<workload::Workload>(work_it->second[0]);
                 break;
             }
             case MessageType::kTaskAck: {
-                msg.ack.taskId = FieldAsString(*fields, FieldId::kTaskId);
+                message.t_ack.task_id = FieldAsString(*fields, FieldId::kTaskId);
                 break;
             }
             case MessageType::kTaskResult: {
-                msg.result.t_id = FieldAsString(*fields, FieldId::kTaskId);
+                message.t_result.task_id = FieldAsString(*fields, FieldId::kTaskId);
                 auto statusIt = fields->find(static_cast<uint8_t>(FieldId::kStatus));
-                msg.result.status = statusIt != fields->end() && !statusIt->second.empty()
+                message.t_result.status = statusIt != fields->end() && !statusIt->second.empty()
                                          ? static_cast<TaskStatus>(statusIt->second[0])
                                          : TaskStatus::kFailed;
                 auto payloadIt = fields->find(static_cast<uint8_t>(FieldId::kPayload));
-                if (payloadIt != fields->end()) msg.result.payload = payloadIt->second;
+                if (payloadIt != fields->end()) message.t_result.payload = payloadIt->second;
                 break;
             }
             case MessageType::kCancel: {
-                msg.cancel.taskId = FieldAsString(*fields, FieldId::kTaskId);
+                message.cancel.task_id = FieldAsString(*fields, FieldId::kTaskId);
                 break;
             }
             default:
                 return std::nullopt;  // unknown top-level message type
         }
-        return msg;
+        return message;
     }
 
 }  // namespace protocol

@@ -4,7 +4,7 @@
 #include "../Wire/protocol.h"
 #include "workload_types.h"
 
-namespace work_l {
+namespace workload {
 
     struct Config {
         Workload type { Workload::SlowSuccess };
@@ -13,5 +13,5 @@ namespace work_l {
         std::pair<size_t,size_t> retry_backoff_ms {100,500};
     };
 
-    protocol::TaskResult ExecuteWorkload (const Config& config, const protocol::TaskId& taskID);
+    protocol::TaskResult ExecuteWorkload (const Config& config, const protocol::T_ID& taskID);
 }
