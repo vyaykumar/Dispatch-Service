@@ -12,7 +12,6 @@ add_executable(worker
         src/utility/worker_pool/worker_interface/worker_interface.cpp
         src/utility/random/random_utils.cpp
         src/utility/scope_logger/scope_logger.cpp
-        src/utility/runner/runner.cpp
 )
 
 add_executable(client
