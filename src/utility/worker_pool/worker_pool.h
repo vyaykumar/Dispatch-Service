@@ -21,8 +21,8 @@ namespace worker_pool {
     };
 
     inline std::string_view getSpeed (SpeedClass speed) {
-        constexpr std::string_view names[] = {"Fast", "Normal", "Slow"};
-        return names[static_cast<size_t>(speed)];
+        constexpr std::string_view speeds[] = {"Fast", "Normal", "Slow"};
+        return speeds[static_cast<size_t>(speed)];
     }
 
     struct Profile {
@@ -48,7 +48,7 @@ namespace worker_pool {
 
             condition_variable_.notify_all();
 
-            for (auto&[profile, thread] : workers_) {
+            for (auto&[_, thread] : workers_) {
                 thread.join();
             }
         }
@@ -65,6 +65,5 @@ namespace worker_pool {
         std::condition_variable condition_variable_;
     };
 }
-
 
 #endif //DISPATCH_SERVICE_SMOKETEST_WORKER_POOL_H

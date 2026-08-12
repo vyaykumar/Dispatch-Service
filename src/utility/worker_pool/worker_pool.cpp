@@ -12,7 +12,7 @@
 
 namespace worker_pool {
     namespace {
-        Profile getProfile (const size_t choice) {
+        Profile constructProfile (const size_t choice) {
             switch (choice) {
                 case 0 :
                     return {
@@ -41,10 +41,8 @@ namespace worker_pool {
             condition_variable_.wait(lock,
                 [this] { return !queue_.empty() or shutting_down_; });
 
-            if (shutting_down_) {
-                logging::Event("Worker terminated.");
-                return;
-            }
+            if (shutting_down_)
+                return logging::Event("Worker terminated.");;
 
             if (queue_.empty())
                 continue;
@@ -62,7 +60,7 @@ namespace worker_pool {
         workers_.reserve(profiles.size());
 
         for (size_t idx {0}; idx < profiles.size(); idx++) {
-            Worker worker { .profile = getProfile(profiles[idx]) };
+            Worker worker { .profile = constructProfile(profiles[idx]) };
             worker.thread = std::jthread(&WorkerPool::WorkerLoop, this, worker.profile);
 
             workers_.push_back(std::move(worker));
