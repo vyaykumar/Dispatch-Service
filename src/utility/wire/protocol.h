@@ -142,7 +142,7 @@ namespace protocol {
     };
 
     struct TaskResult {
-        std::string taskId;
+        std::string t_id;
         TaskStatus status;
         std::vector<uint8_t> payload;  // result data, or error info if failed
     };
@@ -171,7 +171,7 @@ namespace protocol {
 
     inline bool SendTaskResult(transport::socket_t s, const TaskResult& msg) {
         FieldWriter w;
-        w.AddString(FieldId::kTaskId, msg.taskId);
+        w.AddString(FieldId::kTaskId, msg.t_id);
         w.AddByte(FieldId::kStatus, static_cast<uint8_t>(msg.status));
         w.AddRaw(FieldId::kPayload, msg.payload);
         return transport::SendFrame(s, static_cast<uint8_t>(MessageType::kTaskResult), std::move(w).finish());
@@ -226,7 +226,7 @@ namespace protocol {
                 break;
             }
             case MessageType::kTaskResult: {
-                msg.result.taskId = FieldAsString(*fields, FieldId::kTaskId);
+                msg.result.t_id = FieldAsString(*fields, FieldId::kTaskId);
                 auto statusIt = fields->find(static_cast<uint8_t>(FieldId::kStatus));
                 msg.result.status = statusIt != fields->end() && !statusIt->second.empty()
                                          ? static_cast<TaskStatus>(statusIt->second[0])
