@@ -46,7 +46,12 @@ namespace {
             return;
         }
 
-        std::vector <size_t> profiles = {0,1,2,2};
+        // For standard scenarios.
+        // std::vector <size_t> profiles = {1,1,1,1};
+
+        // For SpedUpWorkers scenario. Undeterministic.
+        std::vector <size_t> profiles = {0,1,1,2};
+
         worker_pool::WorkerPool pool {profiles};
 
         // Uncomment this for the (now rectified) shutdown bug.

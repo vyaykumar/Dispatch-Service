@@ -28,7 +28,7 @@ namespace scenario {
 
     Config getTimeoutConfig () {
         return {
-            .scene = Scenario::kHappyPath,
+            .scene = Scenario::kTimeoutRetry,
             .client_template = {
                 .server_address = "127.0.0.1",
                 .port = 50051,
@@ -41,7 +41,7 @@ namespace scenario {
 
                 .timeout = std::chrono::milliseconds(1000),
                 .global_timeout = std::chrono::milliseconds(5000),
-                .max_retries = 2,
+                .max_retries = 0,
             },
             .n_clients = 1,
             .stagger = std::chrono::milliseconds(0),

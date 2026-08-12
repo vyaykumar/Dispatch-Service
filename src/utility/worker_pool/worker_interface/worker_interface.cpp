@@ -66,7 +66,7 @@ namespace worker {
             return {
                 .t_id = t_id,
                 .t_status = protocol::TaskStatus::kInProgress,
-                .payload = { payload.begin(), payload.end() }
+                .payload = { payload.begin(), payload.end()}
             };
         }
 

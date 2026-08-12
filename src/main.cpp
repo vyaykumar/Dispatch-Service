@@ -2,11 +2,24 @@
 #include "utility/execution/execution_engine.h"
 
 int main() {
+    // For HappyPath execution.
     const auto config = scenario::getHappyConfig();
-    // const auto conf = scenario::getTimeoutConf();
-    // const auto conf = scenario::getCachedConf();
-    // const auto conf = scenario::getConcurrentConf();
-    // const auto conf = scenario::getSpeedWorkers();
+
+    // For a single client timing-out.
+    // const auto config = scenario::getTimeoutConfig();
+
+    // For 1 timed-out submission, and then cached response for the next retry.
+    // Evidence in execution times and worker logs.
+    // const auto config = scenario::getCachedConfig();
+
+    // For 4 clients sending out tasks at almost the exact same time.
+    // HiTrLo struggles here.
+    // const auto config = scenario::getConcurrentConfig();
+
+    // For 4 Tasks sent to a pool of 4 varied workers.
+    // (Uncomment relevant worker pool initialisation)
+    // HiTrLo struggles here.
+    // const auto config = scenario::getSpeedWorkersConfig();
 
     auto [results] = execution::ExecuteScenario(config);
 

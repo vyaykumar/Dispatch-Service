@@ -109,7 +109,7 @@ ClientState step (const state::WaitResult&, StateContext& state_context) {
     const auto message = protocol::ReceiveMessage(socket_);
 
     if (!message) {
-        logging::Event(state_context.result.error = "No message received.");
+        logging::Event(state_context.result.error = "Connection timed-out.");
         return state::RetryDecision {};
     }
 
@@ -127,7 +127,10 @@ ClientState step (const state::WaitResult&, StateContext& state_context) {
     if (message->t_result.t_status == protocol::TaskStatus::kSucceeded)
         return state::Success {};
 
-    // TODO: kInProgress should not become Failure.
+    if (message->t_result.t_status == protocol::TaskStatus::kInProgress) {
+        logging::Event("Task already in progress.");
+        return state::RetryDecision {};
+    }
 
     state_context.result.error = state_context.result.payload;
 
@@ -139,12 +142,12 @@ ClientState step (const state::RetryDecision&, StateContext& state_context) {
     LOG_SCOPE("Retry Handler");
 
     if (std::chrono::steady_clock::now() >= state_context.deadline) {
-        logging::Event(state_context.result.error += " We are out of time.");
+        logging::Event(state_context.result.error += " And out of execution time.");
         return state::Failure {};
     }
 
     if (state_context.retries_remaining == 0) {
-        logging::Event(state_context.result.error += " No retries left.");
+        logging::Event(state_context.result.error += " And no retries left.");
         return state::Failure {};
     }
 
