@@ -55,7 +55,7 @@ namespace worker {
         // Monadic chain function
         std::expected<protocol::DecodedMessage, ErrorStates> SubmitACK(const socket_t socket, protocol::DecodedMessage message)
         {
-            return SendACK(socket,message.task_submit.task_id)
+            return SendACK(socket,message.t_submit.t_id)
             .transform([msg = std::move(message)]() mutable
                 { return std::move(msg); }
             );
@@ -64,8 +64,8 @@ namespace worker {
         protocol::TaskResult Rejected (const protocol::T_ID& t_id) {
             std::string payload = "Task exists.";
             return {
-                .task_id = t_id,
-                .status = protocol::TaskStatus::kInProgress,
+                .t_id = t_id,
+                .t_status = protocol::TaskStatus::kInProgress,
                 .payload = { payload.begin(), payload.end() }
             };
         }
@@ -76,7 +76,7 @@ namespace worker {
             if (protocol::SendTaskResult(socket, result))
                 logging::Event("Result successfully sent.");
             else
-                logging::Event("Result for taskID(" + result.task_id + ") couldn't be sent.");
+                logging::Event("Result for taskID(" + result.t_id + ") couldn't be sent.");
 
             return {};
         }
@@ -144,7 +144,7 @@ namespace worker {
             return;
 
         if (const auto result =
-            Process(message.value().task_submit.task_id, message->task_submit.workload, profile)
+            Process(message.value().t_submit.t_id, message->t_submit.workload, profile)
             .and_then(std::bind_front(SendResult, socket));
             !result)
             logging::Event("Failed to send result.");

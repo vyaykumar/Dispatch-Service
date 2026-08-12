@@ -11,32 +11,32 @@ namespace {
     constexpr uint16_t kPort = 50051;
 
     struct DispatchContext {
-        transport::socket_t sock {};
-        sockaddr_in serv_addr{};
+        transport::socket_t socket_ {};
+        sockaddr_in server_address{};
     };
 
     enum class DispatchError {
-        SockCreation_Failure,
-        ServAddress_Failure,
-        TimeoutConf_Failure,
-        Conn_Failure,
-        TaskSub_Failure,
-        ACK_Failure,
-        TimeOut,
-        Receive_Failure,
-        Unexpected_Message
+        kSockCreation_Failure,
+        kServAddress_Failure,
+        kTimeoutConf_Failure,
+        kConn_Failure,
+        kTaskSub_Failure,
+        kACK_Failure,
+        kTimeOut,
+        kReceive_Failure,
+        kUnexpected_Message
     };
 }
 
 // Socket initialization.
 [[nodiscard]] std::expected<void, DispatchError>
-initSock (DispatchContext& ctx) {
-    auto& [sock,_] = ctx;
+initSock (DispatchContext& context) {
+    auto& [socket_,_] = context;
 
-    sock = socket(AF_INET, SOCK_STREAM, 0);
+    socket_ = socket(AF_INET, SOCK_STREAM, 0);
 
-    if (sock == transport::kInvalidSocket)
-        return std::unexpected(DispatchError::SockCreation_Failure);
+    if (socket_ == transport::kInvalidSocket)
+        return std::unexpected(DispatchError::kSockCreation_Failure);
 
     std::cout << "[dispatch]: Socket initialized.\n";
     return {};
@@ -44,33 +44,27 @@ initSock (DispatchContext& ctx) {
 
 // Populating server address.
 [[nodiscard]] std::expected<void, DispatchError>
-initServAddr (DispatchContext& ctx) {
-    auto& [_,serv_addr] = ctx;
+initServAddr (DispatchContext& context) {
+    auto& [_,server_address] = context;
 
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(kPort);
-    inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr);
+    server_address.sin_family = AF_INET;
+    server_address.sin_port = htons(kPort);
+    inet_pton(AF_INET, "127.0.0.1", &server_address.sin_addr);
 
-    // Forgot the error code for this.
-    // if (serv_addr == transport::) {
-    //     return true;
-    // }
-
-    // There are no failure states here.
     std::cout << "[dispatch]: Server Address initialized.\n";
     return {};
 }
 
 // Enforcing timeout.
 [[nodiscard]] std::expected <void, DispatchError>
-initTimeOut (const DispatchContext ctx) {
-    auto [sock, _] = ctx;
+initTimeOut (const DispatchContext &context) {
+    auto [socket_, _] = context;
 
-    const auto flag = setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO,
+    const auto flag = setsockopt(socket_, SOL_SOCKET, SO_RCVTIMEO,
         reinterpret_cast<const char *>(&timeoutMs), sizeof(timeoutMs));
 
     if (flag != 0)
-        return std::unexpected(DispatchError::TimeoutConf_Failure);
+        return std::unexpected(DispatchError::kTimeoutConf_Failure);
 
     std::cout << "[dispatch]: Receive_timeout set.\n";
     return {};
@@ -78,11 +72,11 @@ initTimeOut (const DispatchContext ctx) {
 
 // Starting connection.
 [[nodiscard]] std::expected <void, DispatchError>
-startConn(const DispatchContext ctx) {
-    auto [sock, serv_addr] = ctx;
+startConn(const DispatchContext &context) {
+    auto [socket_, server_address] = context;
 
-    if (connect(sock, reinterpret_cast<sockaddr*>(&serv_addr), sizeof(serv_addr)) != 0)
-        return std::unexpected(DispatchError::Conn_Failure);
+    if (connect(socket_, reinterpret_cast<sockaddr*>(&server_address), sizeof(server_address)) != 0)
+        return std::unexpected(DispatchError::kConn_Failure);
 
     std::cout << "[dispatch]: Connection established.\n";
     return {};
@@ -90,16 +84,16 @@ startConn(const DispatchContext ctx) {
 
 // Submitting task.
 [[nodiscard]] std::expected<void, DispatchError>
-submitTask (const DispatchContext ctx) {
-    auto [sock, _] = ctx;
-    const protocol::TaskSubmit submit{
-        .task_id = "task-0001",
+submitTask (const DispatchContext &context) {
+    auto [socket_, _] = context;
+    const protocol::TaskSubmit t_submit{
+        .t_id = "task-0001",
         .idempotency_key = "idem-key-abc",
         .payload = std::vector<uint8_t>{'h', 'e', 'l', 'l', 'o'}
     };
 
-    if (!protocol::SendTaskSubmit(sock, submit))
-        return std::unexpected(DispatchError::TaskSub_Failure);
+    if (!protocol::SendTaskSubmit(socket_, t_submit))
+        return std::unexpected(DispatchError::kTaskSub_Failure);
 
     std::cout << "[dispatch]: Task submitted successfully.\n";
     return {};
@@ -107,83 +101,83 @@ submitTask (const DispatchContext ctx) {
 
 // Awaiting ACK.
 [[nodiscard]] std::expected<protocol::TaskAck, DispatchError>
-recAck (const DispatchContext ctx) {
-    auto [sock, _] = ctx;
+recAck (const DispatchContext &context) {
+    auto [socket_, _] = context;
 
     // Do we propagate std::expected to receiveMessage too?
     // Change type in the namespace, if yes.
-    auto ackMsg = protocol::ReceiveMessage(sock);
+    auto m_ack = protocol::ReceiveMessage(socket_);
 
-    if (!ackMsg or ackMsg->type != protocol::MessageType::kTaskAck)
-        return std::unexpected(DispatchError::ACK_Failure);
+    if (!m_ack or m_ack->type != protocol::MessageType::kTaskAck)
+        return std::unexpected(DispatchError::kACK_Failure);
 
-    std::cout << "[dispatch]: TaskID(" << ackMsg->task_ack.task_id << ") acknowledged.\n";
+    std::cout << "[dispatch]: TaskID(" << m_ack->t_ack.t_id << ") acknowledged.\n";
 
-    return ackMsg->task_ack;
+    return m_ack->t_ack;
 }
 
 // Awaiting Message.
 [[nodiscard]] std::expected<protocol::TaskResult, DispatchError>
-recMes (const DispatchContext ctx) {
-    auto [sock, _] = ctx;
+recMes (const DispatchContext &context) {
+    auto [socket_, _] = context;
 
-    auto resultMsg = protocol::ReceiveMessage(sock);
+    auto m_result = protocol::ReceiveMessage(socket_);
 
     // Check if Message is empty.
-    if (!resultMsg) {
+    if (!m_result) {
         // Cause of timeout.
         if (WSAGetLastError() == WSAETIMEDOUT) {
             std::cout << "[dispatch]: Connection timed out.\n";
-            return std::unexpected(DispatchError::TimeOut);
+            return std::unexpected(DispatchError::kTimeOut);
         }
         // Any other reason.
         std::cout << "[dispatch]: Failed to receive message.\n";
-        return std::unexpected(DispatchError::Receive_Failure);
+        return std::unexpected(DispatchError::kReceive_Failure);
     }
 
-    if (resultMsg->type != protocol::MessageType::kTaskResult) {
+    if (m_result->type != protocol::MessageType::kTaskResult) {
         std::cout << "[dispatch]: Expected TASK_RESULT. Received else.\n";
-        return std::unexpected(DispatchError::Unexpected_Message);
+        return std::unexpected(DispatchError::kUnexpected_Message);
     }
 
-    const std::string resultText(resultMsg->result.payload.begin(), resultMsg->result.payload.end());
+    const std::string resultText(m_result->t_result.payload.begin(), m_result->t_result.payload.end());
     std::cout << "[dispatch]: received TASK_RESULT: status("
-              << static_cast<int>(resultMsg->result.status)
+              << static_cast<int>(m_result->t_result.t_status)
               << "). Payload: \"" << resultText << "\"\n";
 
-    return resultMsg->result;
+    return m_result->t_result;
 }
 
-void close_sock(const DispatchContext ctx) {
-    auto [sock, _] = ctx;
+void close_sock(const DispatchContext &context) {
+    auto [socket_, _] = context;
 
     std::cout << "[dispatch]: Socket is terminated.\n\n";
-    transport::CloseSocket(sock);
+    transport::CloseSocket(socket_);
 }
 
 // Dispatcher.
 [[nodiscard]] std::expected<protocol::TaskResult, DispatchError>
-dispatch_once (DispatchContext& ctx) {
+dispatch_once (DispatchContext& context) {
 
-    if (auto result = initSock(ctx); !result)
+    if (auto result = initSock(context); !result)
         return std::unexpected(result.error());
 
-    if (auto result = initServAddr(ctx); !result)
+    if (auto result = initServAddr(context); !result)
         return std::unexpected(result.error());
 
-    if (auto result = initTimeOut(ctx); !result)
+    if (auto result = initTimeOut(context); !result)
         return std::unexpected(result.error());
 
-    if (auto result = startConn(ctx); !result)
+    if (auto result = startConn(context); !result)
         return std::unexpected(result.error());
 
-    if (auto result = submitTask(ctx); !result)
+    if (auto result = submitTask(context); !result)
         return std::unexpected(result.error());
 
-    if (auto result = recAck(ctx); !result)
+    if (auto result = recAck(context); !result)
         return std::unexpected(result.error());
 
-    auto result = recMes(ctx);
+    auto result = recMes(context);
     if (!result)
         return std::unexpected(result.error());
 
@@ -191,29 +185,29 @@ dispatch_once (DispatchContext& ctx) {
 }
 
 [[nodiscard]] std::expected<protocol::TaskResult, DispatchError>
-dispatch (DispatchContext& ctx) {
-    auto result {dispatch_once(ctx)};
+dispatch (DispatchContext& context) {
+    auto t_result {dispatch_once(context)};
 
-    if (!result && result.error() == DispatchError::TimeOut) {
-        close_sock(ctx);
+    if (!t_result && t_result.error() == DispatchError::kTimeOut) {
+        close_sock(context);
         std::cout << "[dispatch]: First Retry.\n";
-        return dispatch_once(ctx);
+        return dispatch_once(context);
     }
-    return result;
+    return t_result;
 }
 
 int main() {
     std::cout << "[main]: Client starting\n";
 
-    DispatchContext ctx {};
+    DispatchContext dispatch_context {};
 
     transport::PlatformInit();
     // Switch for the failure states. // We don't need this now. errors are printed out inside the functions themselves.
-    if (auto failure = dispatch(ctx))
+    if (auto failure = dispatch(dispatch_context))
         std::cout << "[main]: Protocol works.\n";
     else
         std::cout << "[main]: Protocol failed.\n";
 
-    close_sock(ctx);
+    close_sock(dispatch_context);
     transport::PlatformCleanup();
 }

@@ -16,8 +16,8 @@ namespace workload {
             std::string resPayload {task_id + " executed."};
 
             protocol::TaskResult result {
-                .task_id = task_id,
-                .status = t_status,
+                .t_id = task_id,
+                .t_status = t_status,
                 .payload = std::vector<uint8_t>(resPayload.begin(), resPayload.end())
             };
             return result;

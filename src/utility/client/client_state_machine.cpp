@@ -73,7 +73,7 @@ ClientState step (const state::SubmitTask&, StateContext& state_context) {
     const auto& socket_ = state_context.socket;
 
     const protocol::TaskSubmit t_submit{
-        .task_id = state_context.context.task_id,
+        .t_id = state_context.context.task_id,
         .idempotency_key = state_context.context.task_id+state_context.context.client_id,
         .payload = state_context.context.workload_config.payload,
     };
@@ -121,10 +121,10 @@ ClientState step (const state::WaitResult&, StateContext& state_context) {
     logging::Event("Received result.");
 
     state_context.result.payload.assign(
-        message->task_result.payload.begin(), message->task_result.payload.end());
-    state_context.result.status = message->task_result.status;
+        message->t_result.payload.begin(), message->t_result.payload.end());
+    state_context.result.status = message->t_result.t_status;
 
-    if (message->task_result.status == protocol::TaskStatus::kSucceeded)
+    if (message->t_result.t_status == protocol::TaskStatus::kSucceeded)
         return state::Success {};
 
     // TODO: kInProgress should not become Failure.
