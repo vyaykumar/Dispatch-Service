@@ -2,14 +2,14 @@
 #include "client_state_machine.h"
 
 namespace client {
-    Result RunClient(const Context& ctx) {
+    Result RunClient(const Context& context) {
         transport::PlatformInit();
-        return RunStateMachine(ctx);
+        return RunStateMachine(context);
     }
 
-    cli_ctx SpawnClient(const Context& ctx) {
+    client_context SpawnClient(const Context& context) {
         std::packaged_task<Result()> task (
-            [ctx] { return RunClient(ctx); }
+            [context] { return RunClient(context); }
         );
         auto future = task.get_future();
         std::jthread worker (std::move(task));

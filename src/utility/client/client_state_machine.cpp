@@ -1,14 +1,17 @@
 #include "client_state_machine.h"
+#include "../scope_logger/scope_logger.h"
+#include "../random/random_utils.h"
 
-ClientState step (const state::InitSocket&, exec_ctx& e_ctx) {
+ClientState step (const state::InitSocket&, StateContext& state_context) {
     LOG_SCOPE("Initialising Socket");
-    auto& sock = e_ctx.sock;
-    sock = socket(AF_INET, SOCK_STREAM, 0);
 
-    if (sock == transport::kInvalidSocket) {
+    auto& socket_ = state_context.socket;
+    socket_ = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (socket_ == transport::kInvalidSocket) {
         const std::string error = "Socket creation failed.";
         logging::Event(error);
-        e_ctx.result.error = error;
+        state_context.result.error = error;
         return state::RetryDecision {};
     }
 
@@ -16,66 +19,67 @@ ClientState step (const state::InitSocket&, exec_ctx& e_ctx) {
     return state::ConfigureAddress {};
 }
 
-ClientState step (const state::ConfigureAddress&, exec_ctx& e_ctx) {
+ClientState step (const state::ConfigureAddress&, StateContext& state_context) {
     LOG_SCOPE("Configuring Address");
-    auto& addr = e_ctx.addr;
-    auto& ctx = e_ctx.ctx;
 
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(ctx.port);
-    inet_pton(AF_INET, ctx.serverAddr.c_str(), &addr.sin_addr);
+    auto& address = state_context.address;
+    auto& context = state_context.context;
+
+    address.sin_family = AF_INET;
+    address.sin_port = htons(context.port);
+    inet_pton(AF_INET, context.server_address.c_str(), &address.sin_addr);
 
     logging::Event("Address configured.");
     return state::ConfigureTimeout {};
 }
 
-ClientState step (const state::ConfigureTimeout&, exec_ctx& e_ctx) {
+ClientState step (const state::ConfigureTimeout&, StateContext& state_context) {
     LOG_SCOPE("Configuring Timeout");
-    const auto& sock = e_ctx.sock;
-    auto& ctx = e_ctx.ctx;
 
-    const auto timeout_ms = ctx.timeout.count();
+    const auto& socket_ = state_context.socket;
+    auto& context = state_context.context;
+    const auto timeout_ms = context.timeout.count();
 
-    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO,
+    if (setsockopt(socket_, SOL_SOCKET, SO_RCVTIMEO,
         reinterpret_cast<const char*>(&timeout_ms), sizeof(timeout_ms)) != 0) {
         const std::string error = "Timeout configured unsuccessfully.";
         logging::Event(error);
-        e_ctx.result.error = error;
+        state_context.result.error = error;
         return state::RetryDecision {};
     }
+
     logging::Event("Timeout configured successfully.");
     return state::Connect {};
 }
 
-ClientState step (const state::Connect&, exec_ctx& e_ctx) {
+ClientState step (const state::Connect&, StateContext& state_context) {
     LOG_SCOPE("Connecting");
-    const auto& sock = e_ctx.sock;
-    auto& addr = e_ctx.addr;
 
-    if (connect(sock, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) != 0) {
-        const std::string error = "Connection failed.";
-        logging::Event(error);
-        e_ctx.result.error = error;
+    const auto& socket_ = state_context.socket;
+    auto& address = state_context.address;
+
+    if (connect(socket_, reinterpret_cast<sockaddr*>(&address), sizeof(address)) != 0) {
+        logging::Event(state_context.result.error = "Connection failed.");
         return state::RetryDecision {};
     }
+
     logging::Event("Connected.");
     return state::SubmitTask {};
 }
 
-ClientState step (const state::SubmitTask&, exec_ctx& e_ctx) {
+ClientState step (const state::SubmitTask&, StateContext& state_context) {
     LOG_SCOPE("Submitting Task");
-    const auto& sock = e_ctx.sock;
 
-    const protocol::TaskSubmit submit{
-        .taskId = e_ctx.ctx.task_id,
-        .idempotencyKey = e_ctx.ctx.task_id+e_ctx.ctx.client_id,
-        .payload = e_ctx.ctx.w_conf.payload,
+    const auto& socket_ = state_context.socket;
+
+    const protocol::TaskSubmit t_submit{
+        .taskId = state_context.context.task_id,
+        .idempotencyKey = state_context.context.task_id+state_context.context.client_id,
+        .payload = state_context.context.workload_config.payload,
     };
 
-    if (!protocol::SendTaskSubmit(sock, submit)) {
-        const std::string error = "Task submitted unsuccessfully.";
-        logging::Event(error);
-        e_ctx.result.error = error;
+    if (!protocol::SendTaskSubmit(socket_, t_submit)) {
+        logging::Event(state_context.result.error = "Task submitted unsuccessfully.");
         return state::RetryDecision {};
     }
 
@@ -83,14 +87,14 @@ ClientState step (const state::SubmitTask&, exec_ctx& e_ctx) {
     return state::WaitAck {};
 }
 
-ClientState step (const state::WaitAck&, exec_ctx& e_ctx) {
+ClientState step (const state::WaitAck&, StateContext& state_context) {
     LOG_SCOPE("Awaiting ACK");
-    const auto& sock = e_ctx.sock;
 
-    if (const auto ackMsg = protocol::ReceiveMessage(sock); !ackMsg or ackMsg->type != protocol::MessageType::kTaskAck) {
-        const std::string error = "ACK validation failed.";
-        logging::Event(error);
-        e_ctx.result.error = error;
+    const auto& socket_ = state_context.socket;
+
+    if (const auto m_ack = protocol::ReceiveMessage(socket_);
+        !m_ack or m_ack->type != protocol::MessageType::kTaskAck) {
+        logging::Event(state_context.result.error = "ACK validation failed.");
         return state::RetryDecision {};
     }
 
@@ -98,115 +102,111 @@ ClientState step (const state::WaitAck&, exec_ctx& e_ctx) {
     return state::WaitResult {};
 }
 
-ClientState step (const state::WaitResult&, exec_ctx& e_ctx) {
+ClientState step (const state::WaitResult&, StateContext& state_context) {
     LOG_SCOPE("Awaiting result");
-    const auto& sock = e_ctx.sock;
 
-    const auto message = protocol::ReceiveMessage(sock);
+    const auto& socket_ = state_context.socket;
+    const auto message = protocol::ReceiveMessage(socket_);
+
     if (!message) {
-        const std::string error = "No message received.";
-        logging::Event(error);
-        e_ctx.result.error = error;
+        logging::Event(state_context.result.error = "No message received.");
         return state::RetryDecision {};
     }
 
     if (message->type != protocol::MessageType::kTaskResult) {
-        const std::string error = "Malformed result.";
-        logging::Event(error);
-        e_ctx.result.error = error;
+        logging::Event(state_context.result.error = "Malformed result.");
         return state::RetryDecision {};
     }
 
     logging::Event("Received result.");
 
-    const std::string resultText(message->result.payload.begin(), message->result.payload.end());
-    e_ctx.result.payload = resultText;
-    e_ctx.result.status = message->result.status;
+    state_context.result.payload.assign(
+        message->result.payload.begin(), message->result.payload.end());
+    state_context.result.status = message->result.status;
 
     if (message->result.status == protocol::TaskStatus::kSucceeded)
         return state::Success {};
 
     // TODO: kInProgress should not become Failure.
-    e_ctx.result.error = resultText;
-    logging::Event("Task failed: " + e_ctx.result.error);
+
+    state_context.result.error = state_context.result.payload;
+
+    logging::Event("Task failed: " + state_context.result.error);
     return state::Failure {};
 }
 
-ClientState step (const state::RetryDecision&, exec_ctx& e_ctx) {
+ClientState step (const state::RetryDecision&, StateContext& state_context) {
     LOG_SCOPE("Retry Handler");
 
-    if (std::chrono::steady_clock::now() >= e_ctx.deadline) {
-        const std::string error = "We are out of time.";
-        logging::Event(error);
-        e_ctx.result.error += " " + error;
+    if (std::chrono::steady_clock::now() >= state_context.deadline) {
+        logging::Event(state_context.result.error += " We are out of time.");
         return state::Failure {};
     }
 
-    if (e_ctx.retries_remaining == 0) {
-        const std::string error = "No retries left.";
-        logging::Event(error);
-        e_ctx.result.error += " " + error;
+    if (state_context.retries_remaining == 0) {
+        logging::Event(state_context.result.error += " No retries left.");
         return state::Failure {};
     }
 
-    --e_ctx.retries_remaining;
-    ++e_ctx.result.retry_count;
+    --state_context.retries_remaining;
+    ++state_context.result.retry_count;
 
-    // logging::Event("Retrying cause of:" + std::to_string(e_ctx.result));
-    logging::Event("Retries left: " + std::to_string(e_ctx.retries_remaining));
+    logging::Event("Retries left: " + std::to_string(state_context.retries_remaining));
 
     return state::CloseSocket {};
 }
 
-ClientState step (const state::CloseSocket&, exec_ctx& e_ctx) {
+ClientState step (const state::CloseSocket&, const StateContext& state_context) {
     LOG_SCOPE("Closing socket.");
-    transport::CloseSocket(e_ctx.sock);
+    transport::CloseSocket(state_context.socket);
     logging::Event("Socket closed.");
     return state::BackOff {};
 }
 
-ClientState step (const state::BackOff&, exec_ctx& e_ctx) {
-    const auto delay = rando::Delay(
-        e_ctx.ctx.w_conf.retry_backoff_ms.first,
-        e_ctx.ctx.w_conf.retry_backoff_ms.second );
+ClientState step (const state::BackOff&, const StateContext& state_context) {
+    const auto delay = rando::Delay(state_context.context.workload_config.retry_backoff_ms);
     LOG_SCOPE("Backing Off for " + std::to_string(delay.count()) + "ms.");
+
     std::this_thread::sleep_for(delay);
     logging::Event("Back again.");
+
     return state::InitSocket {};
 }
 
-void step (const state::Success&, exec_ctx& e_ctx) {
-    LOG_SCOPE("Succeeded");
-    transport::CloseSocket(e_ctx.sock);
+void step (const state::Success&, StateContext& state_context) {
+    LOG_SCOPE("Succeeded.");
+
+    transport::CloseSocket(state_context.socket);
     logging::Event("Socket closed.");
 
-    e_ctx.result.success = true;
-    e_ctx.result.error.clear();
+    state_context.result.success = true;
+    state_context.result.error.clear();
 }
 
-void step (const state::Failure&, exec_ctx& e_ctx){
-    LOG_SCOPE("Failed");
-    transport::CloseSocket(e_ctx.sock);
+void step (const state::Failure&, StateContext& state_context) {
+    LOG_SCOPE("Failed.");
+
+    transport::CloseSocket(state_context.socket);
     logging::Event("Socket closed.");
 
-    e_ctx.result.success = false;
+    state_context.result.success = false;
 }
 
-Result RunStateMachine(const Context& ctx)
-{
-    LOG_SCOPE(ctx.client_id);
-    exec_ctx e_ctx {
-        .ctx = ctx,
+Result RunStateMachine(const Context& context) {
+    LOG_SCOPE(context.client_id);
+
+    StateContext state_context {
+        .context = context,
         .result {
-            .task_id = ctx.task_id,
-            .client_id = ctx.client_id
+            .task_id = context.task_id,
+            .client_id = context.client_id
         },
-        .retries_remaining = ctx.max_retries,
+        .retries_remaining = context.max_retries,
         .start =
             std::chrono::steady_clock::now(),
         .deadline =
             std::chrono::steady_clock::now()
-            + ctx.global_timeout
+            + context.global_timeout
     };
 
     ClientState current = state::InitSocket {};
@@ -219,23 +219,26 @@ Result RunStateMachine(const Context& ctx)
             using StateType = std::decay_t<T0>;
 
             if constexpr (std::is_same_v<StateType, state::Success>) {
-                step(current_state, e_ctx);
-                e_ctx.result.success = true;
+                step(current_state, state_context);
+                state_context.result.success = true;
                 terminal = true;
             }
+
             else if constexpr (std::is_same_v<StateType, state::Failure>) {
-                step(current_state, e_ctx);
-                e_ctx.result.success = false;
+                step(current_state, state_context);
+                state_context.result.success = false;
                 terminal = true;
             }
-            else {
-                current = step(current_state, e_ctx);
-            }
+
+            else
+                current = step(current_state, state_context);
+
         }, current);
 
-        e_ctx.result.exe_time = duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - e_ctx.start).count();
+        state_context.result.execution_time = duration_cast<std::chrono::milliseconds>
+            (std::chrono::steady_clock::now() - state_context.start).count();
 
         if (terminal)
-            return e_ctx.result;
+            return state_context.result;
     }
 }
