@@ -16,7 +16,7 @@ namespace worker {
     using transport::socket_t;
 
     namespace {
-        task_registry::TaskRegistry g_registry;
+        task_registry::TaskRegistry task_registry;
 
         enum class ErrorStates {
             MalformedMessage,
@@ -113,7 +113,7 @@ namespace worker {
             }
 
             auto res = work_l::ExecuteWorkload(config, taskID);
-            g_registry.markComplete(taskID, res);
+            task_registry.markComplete(taskID, res);
 
             return res;
         }
@@ -124,7 +124,7 @@ namespace worker {
             using Action = task_registry::Action;
 
             logging::Event("Checking for Task(" + t_id + ").");
-            switch (auto [action, result] = g_registry.tryClaim(t_id); action) {
+            switch (auto [action, result] = task_registry.tryClaim(t_id); action) {
                 // case Action::Reject  : logging::Event("Registry decision: Reject.");  return std::unexpected (ErrorStates::JobExists);
                 case Action::Reject  : logging::Event("Registry decision: Reject.");  return Rejected(t_id);
                 case Action::Execute : logging::Event("Registry decision: Execute."); return Execute(t_id, workload, profile);
