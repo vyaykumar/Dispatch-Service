@@ -6,15 +6,15 @@
 #include "random_utils.h"
 
 
-namespace rando {
+namespace random_utils {
     namespace {
         std::mt19937 rng {
             std::random_device{}()
         };
     }
 
-    std::chrono::milliseconds Delay(const size_t min, const size_t max) {
-        const std::chrono::milliseconds t_min {min}, t_max {max};
+    std::chrono::milliseconds Delay(const std::pair<size_t, size_t> &values) {
+        const std::chrono::milliseconds t_min {values.first}, t_max {values.second};
 
         std::uniform_int_distribution dist (t_min.count(), t_max.count());
         return std::chrono::milliseconds{dist(rng)};

@@ -2,7 +2,7 @@
 
 #include <chrono>
 
-namespace rando {
-    std::chrono::milliseconds Delay(size_t min, size_t max);
-    bool Success (double probability);
+namespace random_utils {
+    std::chrono::milliseconds Delay(const std::pair<size_t,size_t>&);
+    bool Success (double);
 }
