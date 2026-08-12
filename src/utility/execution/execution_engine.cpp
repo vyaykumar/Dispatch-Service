@@ -1,38 +1,39 @@
-//
-// Created by VijayKumar on 06-08-2026.
-//
-
 #include "execution_engine.h"
 
+#include "../client/client_interface.h"
+#include "../client/client_types.h"
+
 namespace execution {
-    Context BuildContext (const scenario::Config& conf, size_t idx) {
-        Context ctx = conf.client_template;
-        ctx.client_id = "client"+std::to_string(idx);
-        switch (conf.strategy) {
+    Context BuildContext (const scenario::Config& config, const size_t idx) {
+        Context context = config.client_template;
+        context.client_id = "client_"+std::to_string(idx);
+
+        switch (config.strategy) {
             case scenario::TaskStrategy::Unique:
-                ctx.task_id = "task-" + std::to_string(idx);
+                context.task_id = "task_" + std::to_string(idx);
                 break;
             case scenario::TaskStrategy::Shared:
-                ctx.task_id = "shared-task";
+                context.task_id = "shared_task";
                 break;
         }
-        return ctx;
+
+        return context;
     }
 
-    ExecutionResult ExecuteScenario (const scenario::Config& conf) {
-        ExecutionResult res_vec {};
-        std::vector<client::cli_ctx> clients {};
+    ExecutionResult ExecuteScenario (const scenario::Config& config) {
+        ExecutionResult execution_results {};
+        std::vector<client::client_context> client_contexts {};
 
-        for (size_t idx {0}; idx < conf.clients; idx++) {
-            auto ctx = BuildContext(conf, idx);
+        for (size_t idx {0}; idx < config.n_clients; idx++) {
+            auto context = BuildContext(config, idx);
             std::cout << "\n";
-            clients.push_back(client::SpawnClient(ctx));
-            std::this_thread::sleep_for(conf.stagger);
+            client_contexts.push_back(client::SpawnClient(context));
+            std::this_thread::sleep_for(config.stagger);
         }
 
-        for (auto&[worker, result] : clients)
-            res_vec.results.push_back(result.get());
+        for (auto&[worker, result] : client_contexts)
+            execution_results.results.push_back(result.get());
 
-        return res_vec;
+        return execution_results;
     }
 }
