@@ -4,7 +4,7 @@ project(dispatch_service_smoketest CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_executable(worker
+add_executable(workerpool
         src/worker_cli.cpp
 
         src/utility/workload/workload.cpp
@@ -14,7 +14,7 @@ add_executable(worker
         src/utility/scope_logger/scope_logger.cpp
 )
 
-add_executable(client
+add_executable(synchronous_client
         src/client_cli.cpp
 
         src/utility/client/client_interface.cpp
@@ -26,12 +26,12 @@ add_executable(client
         src/utility/scope_logger/scope_logger.cpp
 )
 
-add_executable(logger
+add_executable(logger_validation
         src/utility/scope_logger/main.cpp
         src/utility/scope_logger/scope_logger.cpp
 )
 
-add_executable(smoke_test
+add_executable(run_test
         src/main.cpp
 
         src/utility/execution/execution_engine.cpp
@@ -47,10 +47,10 @@ add_executable(smoke_test
         src/utility/scope_logger/scope_logger.cpp
 )
 
-target_link_libraries(worker PRIVATE ws2_32)
-target_link_libraries(client PRIVATE ws2_32)
-target_link_libraries(smoke_test PRIVATE ws2_32)
+target_link_libraries(workerpool PRIVATE ws2_32)
+target_link_libraries(synchronous_client PRIVATE ws2_32)
+target_link_libraries(run_test PRIVATE ws2_32)
 
 if(WIN32)
-    target_link_libraries(smoke_test PRIVATE ws2_32)
+    target_link_libraries(run_test PRIVATE ws2_32)
 endif()
